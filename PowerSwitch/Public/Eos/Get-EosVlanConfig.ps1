@@ -44,11 +44,12 @@ function Get-EosVlanConfig {
 		###########################################################################################
 		# Check for the Section
 		
-		$Regex = [regex] '#\ vlan'
+		$Regex = [regex] '^#\ vlan$'
 		$Match = Get-RegexMatch $Regex $entry
 		if ($Match) {
             Write-Verbose "$VerbosePrefix $i`: vlan: config started"
             $KeepGoing = $true
+            continue
         }
 
         if ($KeepGoing) {
@@ -61,6 +62,10 @@ function Get-EosVlanConfig {
             $Eval             = Get-RegexMatch @EvalParams
             if ($Eval) {
                 Write-Verbose "$VerbosePrefix $i`: vlan: create"
+                $ResolvedVlans = Resolve-VlanString -VlanString $Eval -SwitchType 'Eos'
+                foreach ($r in $ResolvedVlans) {
+                    $ReturnArray += [Vlan]::new($r)
+                }
             }
             
             # vlan name
@@ -71,6 +76,18 @@ function Get-EosVlanConfig {
                 $VlanId   = $Eval.Groups['id'].Value
                 $VlanName = $Eval.Groups['name'].Value
                 Write-Verbose "$VerbosePrefix $i`: vlan: id $VlanId = name $VlanName"
+                $Lookup = $ReturnArray | Where-Object { $_.Id -eq $VlanId }
+                if ($Lookup) {
+                    $Lookup.Name = $VlanName
+                } else {
+                    Throw "$VerbosePrefix $i`: vlan: $VlanId not found in ReturnArray"
+                }
+            }
+
+            $Regex = [regex] '^#'
+            $Match = Get-RegexMatch $Regex $entry
+            if ($Match) {
+                break
             }
         }
 	}	
