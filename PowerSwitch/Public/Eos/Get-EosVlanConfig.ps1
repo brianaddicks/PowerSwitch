@@ -7,7 +7,10 @@ function Get-EosVlanConfig {
 
 	Param (
 		[Parameter(Mandatory=$True,Position=0)]
-		[string]$ConfigPath
+        [string]$ConfigPath,
+
+        [Parameter(Mandatory=$false,Position=1,ValueFromPipeline=$True)]
+        [array]$Ports
 	)
     
     # It's nice to be able to see what cmdlet is throwing output isn't it?
@@ -22,6 +25,10 @@ function Get-EosVlanConfig {
     $ReturnArray = @()
     $ReturnArray += [Vlan]::new(1)
     $ReturnArray[0].Name = "Default Vlan"
+
+    if ($Ports) {
+        $ReturnArray[0].UntaggedPorts = $Ports.Name
+    }
 	
     $IpRx = [regex] "(\d+)\.(\d+)\.(\d+)\.(\d+)"
 	
@@ -115,6 +122,6 @@ function Get-EosVlanConfig {
                 break
             }
         }
-	}	
+	}
 	return $ReturnArray
 }
