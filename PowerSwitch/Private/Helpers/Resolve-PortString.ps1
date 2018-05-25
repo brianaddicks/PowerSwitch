@@ -17,12 +17,10 @@ function Resolve-PortString {
             $BladeModuleRx = [regex] '(?<bm>\w+\.\d+\.)(?<number>\d+)'
             $SemicolonSplit = $PortString.Split(';')
             foreach ($sc in $SemicolonSplit) {
-                Write-Verbose $sc
                 $BladeModuleMatch = $BladeModuleRx.Match($sc)
                 $BladeModule = $BladeModuleMatch.Groups['bm'].Value
                 $CommaSplit = $sc.Split(',')
                 foreach ($c in $CommaSplit) {
-                    Write-Verbose $c
                     $DashSplit = $c.Split('-')
                     if ($DashSplit.Count -eq 2) {
                         $BladeModuleMatch = $BladeModuleRx.Match($DashSplit[0])
@@ -31,8 +29,6 @@ function Resolve-PortString {
                         } else {
                             $Number = $DashSplit[0]
                         }
-                        Write-Verbose $DashSplit[0]
-                        Write-Verbose $DashSplit[1]
                         for ( $d = [int]($Number); $d -le [int]($DashSplit[1]); $d++ ) {
                             $ReturnArray += "$BladeModule$d"
                         }

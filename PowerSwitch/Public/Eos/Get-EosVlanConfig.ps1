@@ -2,7 +2,7 @@ function Get-EosVlanConfig {
     [CmdletBinding()]
 	<#
         .SYNOPSIS
-            Gets Vlan Configuration from Eos (Extreme/Enterasys) switch "show conf" output.
+            Gets Vlan Configuration from Eos (Extreme/Enterasys) switch "show config" output.
 	#>
 
 	Param (
@@ -20,6 +20,8 @@ function Get-EosVlanConfig {
 
     # Setup return Array
     $ReturnArray = @()
+    $ReturnArray += [Vlan]::new(1)
+    $ReturnArray[0].Name = "Default Vlan"
 	
     $IpRx = [regex] "(\d+)\.(\d+)\.(\d+)\.(\d+)"
 	
@@ -79,6 +81,29 @@ function Get-EosVlanConfig {
                 $Lookup = $ReturnArray | Where-Object { $_.Id -eq $VlanId }
                 if ($Lookup) {
                     $Lookup.Name = $VlanName
+                } else {
+                    Throw "$VerbosePrefix $i`: vlan: $VlanId not found in ReturnArray"
+                }
+            }
+
+            # vlan egress
+            $EvalParams.Regex = [regex] "set\ vlan\ egress\ (?<id>\d+)\ (?<ports>.+?)\ (?<tagging>.+)"
+            $Eval             = Get-RegexMatch @EvalParams
+            if ($Eval) {
+                $VlanId  = $Eval.Groups['id'].Value
+                $Ports   = $Eval.Groups['ports'].Value
+                $Tagging = $Eval.Groups['tagging'].Value
+                Write-Verbose "$VerbosePrefix $i`: vlan: $VlanId`: ports $Ports, $Tagging"
+                $Lookup = $ReturnArray | Where-Object { $_.Id -eq $VlanId }
+                if ($Lookup) {
+                    switch ($Tagging) {
+                        'tagged' {
+                            $Lookup.TaggedPorts = Resolve-PortString -PortString $Ports -SwitchType 'Eos'
+                        }
+                        'untagged' {
+                            $Lookup.UntaggedPorts = Resolve-PortString -PortString $Ports -SwitchType 'Eos'
+                        }
+                    }
                 } else {
                     Throw "$VerbosePrefix $i`: vlan: $VlanId not found in ReturnArray"
                 }
