@@ -2,9 +2,9 @@ Class Port {
     [string]$Name
     [string]$Alias
 
-    [string]$NativeVlan
-    [string]$UntaggedVlan
-    [string[]]$TaggedVlan
+    [int]$NativeVlan
+    [int]$UntaggedVlan
+    [int[]]$TaggedVlan
 
     [string]$OperStatus
     [string]$AdminStatus
@@ -16,7 +16,9 @@ Class Port {
     # Initiator
     Port([string]$Name,[string]$Type) {
         $this.Name         = $Name
-        if ($Type -ne "other") {
+        $this.Type         = $Type
+
+        if (($Type -ne "other") -and ($Name -notmatch "(com|vsb)")) {
             $this.NativeVlan   = 1
             $this.UntaggedVlan = 1
         }

@@ -4,7 +4,7 @@ function Resolve-PortString {
 		[Parameter(Mandatory=$True,Position=0)]
         [String]$PortString,
         
-        [Parameter(Mandatory=$True,Position=0)]
+        [Parameter(Mandatory=$True,Position=1)]
         [ValidateSet("Eos")]
 		[String]$SwitchType
 	)
@@ -22,8 +22,8 @@ function Resolve-PortString {
                 $CommaSplit = $sc.Split(',')
                 foreach ($c in $CommaSplit) {
                     $DashSplit = $c.Split('-')
+                    $BladeModuleMatch = $BladeModuleRx.Match($DashSplit[0])
                     if ($DashSplit.Count -eq 2) {
-                        $BladeModuleMatch = $BladeModuleRx.Match($DashSplit[0])
                         if ($BladeModuleMatch.Success) {
                             $Number = $BladeModuleMatch.Groups['number'].Value
                         } else {
@@ -33,7 +33,11 @@ function Resolve-PortString {
                             $ReturnArray += "$BladeModule$d"
                         }
                     } else {
-                        $ReturnArray += "$BladeModule$DashSplit"
+                        if ($BladeModuleMatch.Success) {
+                            $ReturnArray += $DashSplit
+                        } else {
+                            $ReturnArray += "$BladeModule$DashSplit"
+                        }
                     }
                 }
             }

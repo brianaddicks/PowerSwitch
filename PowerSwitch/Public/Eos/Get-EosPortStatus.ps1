@@ -73,6 +73,8 @@ function Get-EosPortStatus {
             $PortStatusRxString += "\ (?<duplex>.{$DuplexLength})"
             $PortStatusRxString += "\ (?<type>.{1,$TypeLength})"
 
+            $global:testrx = $PortStatusRxString
+
             continue
         }
 

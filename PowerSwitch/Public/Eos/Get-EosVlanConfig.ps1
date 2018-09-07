@@ -27,7 +27,7 @@ function Get-EosVlanConfig {
     $ReturnArray[0].Name = "Default Vlan"
 
     if ($Ports) {
-        $ReturnArray[0].UntaggedPorts = $Ports.Name
+        $ReturnArray[0].UntaggedPorts = ($Ports | Where-Object { $_.type -ne "other" }).Name
     }
 	
     $IpRx = [regex] "(\d+)\.(\d+)\.(\d+)\.(\d+)"
@@ -93,22 +93,43 @@ function Get-EosVlanConfig {
                 }
             }
 
+            # clear vlan egress 1
+            $EvalParams.Regex = [regex] "clear\ vlan\ egress\ 1\ (?<ports>.+)"
+            $Eval             = Get-RegexMatch @EvalParams
+            if ($Eval) {
+                Write-Verbose "$VerbosePrefix $i`: vlan: clear egress 1"
+                $ThesePorts = $Eval.Groups['ports'].Value
+                $ThesePorts = Resolve-PortString -PortString $ThesePorts -SwitchType 'Eos'
+                Write-Verbose "$VerbosePrefix $i`: vlan: $($LookupPorts.Count) ports to be cleared"
+                $LookupPorts = $Ports | Where-Object { $ThesePorts -contains $_.Name }
+                Write-Verbose "$VerbosePrefix $i`: vlan: $($LookupPorts.Count) ports"
+                foreach ($p in $LookupPorts) {
+                    if ($p.UntaggedVlan -eq 1) {
+                        $p.UntaggedVlan = $null
+                    }
+                    if ($p.TaggedVlan -contains 1) {
+                        $p.TaggedVlan = $P.TaggedVlan | Where-Object { $_ -ne 1 }
+                    }
+                }
+            }
+
             # vlan egress
             $EvalParams.Regex = [regex] "set\ vlan\ egress\ (?<id>\d+)\ (?<ports>.+?)\ (?<tagging>.+)"
             $Eval             = Get-RegexMatch @EvalParams
             if ($Eval) {
-                $VlanId  = $Eval.Groups['id'].Value
-                $Ports   = $Eval.Groups['ports'].Value
-                $Tagging = $Eval.Groups['tagging'].Value
-                Write-Verbose "$VerbosePrefix $i`: vlan: $VlanId`: ports $Ports, $Tagging"
+                $VlanId     = $Eval.Groups['id'].Value
+                $ThesePorts = $Eval.Groups['ports'].Value
+                $Tagging    = $Eval.Groups['tagging'].Value
+
+                Write-Verbose "$VerbosePrefix $i`: vlan: $VlanId`: ports $ThesePorts, $Tagging"
                 $Lookup = $ReturnArray | Where-Object { $_.Id -eq $VlanId }
                 if ($Lookup) {
                     switch ($Tagging) {
                         'tagged' {
-                            $Lookup.TaggedPorts = Resolve-PortString -PortString $Ports -SwitchType 'Eos'
+                            $Lookup.TaggedPorts = Resolve-PortString -PortString $ThesePorts -SwitchType 'Eos'
                         }
                         'untagged' {
-                            $Lookup.UntaggedPorts = Resolve-PortString -PortString $Ports -SwitchType 'Eos'
+                            $Lookup.UntaggedPorts = Resolve-PortString -PortString $ThesePorts -SwitchType 'Eos'
                         }
                     }
                 } else {
