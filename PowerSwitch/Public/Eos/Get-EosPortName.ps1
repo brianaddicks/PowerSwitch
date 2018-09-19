@@ -1,4 +1,4 @@
-function Get-EosVlanConfig {
+function Get-EosPortName {
     [CmdletBinding(DefaultParametersetName = "path")]
 
     Param (
@@ -13,7 +13,7 @@ function Get-EosVlanConfig {
     )
 
     # It's nice to be able to see what cmdlet is throwing output isn't it?
-    $VerbosePrefix = "Get-EosVlanConfig:"
+    $VerbosePrefix = "Get-EosPortName:"
 
     # Check for path and import
     if ($ConfigPath) {
@@ -147,5 +147,24 @@ function Get-EosVlanConfig {
             }
         }
     }
-    return $ReturnArray
+
+    $Inventory = Get-EosInventory -ConfigArray $LoopArray
+
+    $rx = [regex] '(\w+)\.(\d+)\.(\d+)'
+    $Ports = $ReturnArray.UntaggedPorts + $ReturnArray.TaggedPorts
+    switch ($Inventory) {
+        { $_ -match 'C5|B5' } {
+            for ($i = 1; $i -le 6; $i++) {
+                $Ports += "lag.0.$i"
+            }
+        }
+        { $_ -Match 'S4' } {
+            for ($i = 1; $i -le 126; $i++) {
+                $Ports += "lag.0.$i"
+            }
+        }
+    }
+    $Ports = $Ports | Select-Object -Unique | Sort-Object -Property @{e = {$rx.match($_).groups[2].value}}, @{e = {$rx.match($_).groups[1].value}}, @{e = {"{0:000}" -f [int]($rx.match($_).groups[3].value)}}
+
+    return $Ports
 }
