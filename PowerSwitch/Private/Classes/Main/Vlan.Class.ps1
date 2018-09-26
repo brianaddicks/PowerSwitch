@@ -3,6 +3,7 @@ Class Vlan {
     [int]$Id
     [string[]]$UntaggedPorts
     [string[]]$TaggedPorts
+    [bool]$Enabled = $true
 
     ##################################### Initiators #####################################
     # Initiator

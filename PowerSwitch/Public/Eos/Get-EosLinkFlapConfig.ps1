@@ -1,4 +1,4 @@
-function Get-EosSpantreeConfig {
+function Get-EosLinkFlapConfig {
     [CmdletBinding(DefaultParametersetName = "path")]
 
     Param (
@@ -10,7 +10,7 @@ function Get-EosSpantreeConfig {
     )
 
     # It's nice to be able to see what cmdlet is throwing output isn't it?
-    $VerbosePrefix = "Get-EosSpantreeConfig:"
+    $VerbosePrefix = "Get-EosLinkFlapConfig:"
 
     # Check for path and import
     if ($ConfigPath) {
@@ -21,17 +21,13 @@ function Get-EosSpantreeConfig {
         $LoopArray = $ConfigArray
     }
 
-    $Ports = Get-EosPortName -ConfigArray $LoopArray
-
     # Setup ReturnObject
     $ReturnObject = @{}
-    $ReturnObject.Priority = 32768
-    $ReturnObject.AdminEdgePorts = @()
-    $ReturnObject.NonAdminEdgePorts = $Ports
-    $ReturnObject.AdminDisabledPorts = @()
-    $ReturnObject.AdminEnabledPorts = $Ports
-    $ReturnObject.AutoEdgeEnabled = $true
-    $ReturnObject.SpanGuardEnabled = $false
+    $ReturnObject.Enabled = $false
+    $ReturnObject.EnabledPorts = @()
+    $ReturnObject.PortActionDisable = @()
+    $ReturnObject.PortActionTrap = @()
+    $ReturnObject.PortActionSyslog = @()
 
     $IpRx = [regex] "(\d+)\.(\d+)\.(\d+)\.(\d+)"
 
@@ -56,10 +52,10 @@ function Get-EosSpantreeConfig {
         ###########################################################################################
         # Check for the Section
 
-        $Regex = [regex] '^#(\ )?spantree$'
+        $Regex = [regex] '^#(\ )?linkflap$'
         $Match = Get-RegexMatch $Regex $entry
         if ($Match) {
-            Write-Verbose "$VerbosePrefix $i`: spantree: config started"
+            Write-Verbose "$VerbosePrefix $i`: linkflap: config started"
             $KeepGoing = $true
             continue
         }
@@ -68,45 +64,43 @@ function Get-EosSpantreeConfig {
             $EvalParams = @{}
             $EvalParams.StringToEval = $entry
 
-            # set spantree autoedge disable
-            $EvalParams.Regex = [regex] "^set\ spantree\ autoedge\ disable"
+            # set linkflap globalstate enable
+            $EvalParams.Regex = [regex] "^set\ linkflap\ globalstate\ enable"
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
-                $ReturnObject.AutoEdgeEnabled = $false
+                $ReturnObject.Enabled = $true
             }
 
-            # set spantree spanguard enable
-            $EvalParams.Regex = [regex] "^set\ spantree\ spanguard\ enable"
+            # set linkflap action <port> <action>
+            $EvalParams.Regex = [regex] "^set\ linkflap\ action\ (?<port>.+?)\ (?<action>.+)"
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
-                $ReturnObject.SpanGuardEnabled = $true
+                switch ($Eval.Groups['action'].Value) {
+                    'disableInterface' {
+                        $ReturnObject.PortActionDisable += $Eval.Groups['port'].Value
+                    }
+                    'genSyslogEntry' {
+                        $ReturnObject.PortActionSyslog += $Eval.Groups['port'].Value
+                    }
+                    'genTrap' {
+                        $ReturnObject.PortActionTrap += $Eval.Groups['port'].Value
+                    }
+                    'all' {
+                        $ReturnObject.PortActionDisable += $Eval.Groups['port'].Value
+                        $ReturnObject.PortActionSyslog += $Eval.Groups['port'].Value
+                        $ReturnObject.PortActionTrap += $Eval.Groups['port'].Value
+                    }
+                }
             }
 
             $EvalParams.ReturnGroupNumber = 1
 
-            # set spantree priority <priority>
-            $EvalParams.Regex = [regex] "^set\ spantree\ priority\ (\d+)"
+            # set linkflap portstate enable <port>
+            $EvalParams.Regex = [regex] "^set\ linkflap\ portstate\ enable\ (.+)"
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
-                Write-Verbose "$VerbosePrefix $i`: spantree: priority"
-                $ReturnObject.Priority = $Eval
+                $ReturnObject.EnabledPorts += $Eval
             }
-
-            # set spantree adminedge <port> true
-            $EvalParams.Regex = [regex] "^set\ spantree\ adminedge\ (.+?)\ true"
-            $Eval = Get-RegexMatch @EvalParams
-            if ($Eval) {
-                $ReturnObject.AdminEdgePorts += $Eval
-                $ReturnObject.NonAdminEdgePorts = $ReturnObject.NonAdminEdgePorts | Where-Object { $_ -ne $Eval }
-            }
-
-            # set spantree portadmin <port> disable
-            $EvalParams.Regex = [regex] "^set\ spantree\ portadmin\ (.+?)\ disable"
-            $Eval = Get-RegexMatch @EvalParams
-            if ($Eval) {
-                $ReturnObject.AdminDisabledPorts += $Eval
-            }
-
 
 
             $Regex = [regex] '^#'

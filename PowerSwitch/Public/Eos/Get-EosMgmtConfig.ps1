@@ -21,13 +21,15 @@ function Get-EosMgmtConfig {
         $LoopArray = $ConfigArray
     }
 
-    $Ports = Get-EosPortName -ConfigArray $LoopArray
-
     # Setup ReturnObject
     $ReturnObject = @{}
     $ReturnObject.SshEnabled = $false
     $ReturnObject.TelnetEnabled = $true
     $ReturnObject.WebviewEnabled = $true
+
+    $WebviewComplete = $false
+    $SshComplete = $false
+    $TelnetComplete = $false
 
     $IpRx = [regex] "(\d+)\.(\d+)\.(\d+)\.(\d+)"
 
@@ -51,15 +53,18 @@ function Get-EosMgmtConfig {
 
         ###########################################################################################
         # WebView
-        $Regex = [regex] '^#(\ )?webview$'
-        $Match = Get-RegexMatch $Regex $entry
-        if ($Match) {
+        $EvalParams = @{}
+        $EvalParams.StringToEval = $entry
+
+        $EvalParams.Regex = [regex] '^#(\ )?webview$'
+        $Eval = Get-RegexMatch @EvalParams
+        if ($Eval) {
             Write-Verbose "$VerbosePrefix $i`: webview: config started"
-            $KeepGoing = $true
+            $WebViewKeepGoing = $true
             continue
         }
 
-        if ($KeepGoing) {
+        if ($WebViewKeepGoing) {
             $EvalParams = @{}
             $EvalParams.StringToEval = $entry
 
@@ -69,29 +74,35 @@ function Get-EosMgmtConfig {
             if ($Eval) {
                 Write-Verbose "$VerbosePrefix $i`: webview: disabled"
                 $ReturnObject.WebviewEnabled = $false
+                continue
             }
 
-            $Regex = [regex] '^#'
+            $Regex = [regex] '^!'
             $Match = Get-RegexMatch $Regex $entry
             if ($Match) {
                 $WebviewComplete = $true
                 if ($WebviewComplete -and $SshComplete -and $TelnetComplete) {
+                    Write-Verbose "$VerbosePrefix $i`: webview: all sections complete"
                     break
+                } else {
+                    $WebViewKeepGoing = $false
+                    Write-Verbose "$VerbosePrefix $i`: webview: config ended"
+                    continue
                 }
             }
         }
 
         ###########################################################################################
         # Ssh
-        $Regex = [regex] '^#(\ )?ssh$'
-        $Match = Get-RegexMatch $Regex $entry
-        if ($Match) {
+        $EvalParams.Regex = [regex] '^#(\ )?ssh$'
+        $Eval = Get-RegexMatch @EvalParams
+        if ($Eval) {
             Write-Verbose "$VerbosePrefix $i`: ssh: config started"
-            $KeepGoing = $true
+            $SshKeepGoing = $true
             continue
         }
 
-        if ($KeepGoing) {
+        if ($SshKeepGoing) {
             $EvalParams = @{}
             $EvalParams.StringToEval = $entry
 
@@ -101,29 +112,38 @@ function Get-EosMgmtConfig {
             if ($Eval) {
                 Write-Verbose "$VerbosePrefix $i`: ssh: enabled"
                 $ReturnObject.SshEnabled = $true
+                continue
             }
 
-            $Regex = [regex] '^#'
+            $Regex = [regex] '^!'
             $Match = Get-RegexMatch $Regex $entry
             if ($Match) {
                 $SshComplete = $true
                 if ($WebviewComplete -and $SshComplete -and $TelnetComplete) {
+                    Write-Verbose "WebviewComplete: $WebviewComplete"
+                    Write-Verbose "SshComplete: $SshComplete"
+                    Write-Verbose "TelnetComplete: $TelnetComplete"
+                    Write-Verbose "$VerbosePrefix $i`: ssh: all sections complete"
                     break
+                } else {
+                    $SshKeepGoing = $false
+                    Write-Verbose "$VerbosePrefix $i`: ssh: config ended"
+                    continue
                 }
             }
         }
 
         ###########################################################################################
         # Telnet
-        $Regex = [regex] '^#(\ )?telnet$'
-        $Match = Get-RegexMatch $Regex $entry
-        if ($Match) {
+        $EvalParams.Regex = [regex] '^#(\ )?telnet$'
+        $Eval = Get-RegexMatch @EvalParams
+        if ($Eval) {
             Write-Verbose "$VerbosePrefix $i`: telnet: config started"
-            $KeepGoing = $true
+            $TelnetKeepGoing = $true
             continue
         }
 
-        if ($KeepGoing) {
+        if ($TelnetKeepGoing) {
             $EvalParams = @{}
             $EvalParams.StringToEval = $entry
 
@@ -133,14 +153,20 @@ function Get-EosMgmtConfig {
             if ($Eval) {
                 Write-Verbose "$VerbosePrefix $i`: telnet: disable"
                 $ReturnObject.TelnetEnabled = $false
+                continue
             }
 
-            $Regex = [regex] '^#'
+            $Regex = [regex] '^!'
             $Match = Get-RegexMatch $Regex $entry
             if ($Match) {
                 $TelnetComplete = $true
                 if ($WebviewComplete -and $SshComplete -and $TelnetComplete) {
+                    Write-Verbose "$VerbosePrefix $i`: telnet: all sections complete"
                     break
+                } else {
+                    $TelnetKeepGoing = $false
+                    Write-Verbose "$VerbosePrefix $i`: telnet: config ended"
+                    continue
                 }
             }
         }

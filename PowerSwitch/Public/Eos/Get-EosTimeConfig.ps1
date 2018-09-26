@@ -1,4 +1,4 @@
-function Get-EosHostConfig {
+function Get-EosTimeConfig {
     [CmdletBinding(DefaultParametersetName = "path")]
 
     Param (
@@ -10,7 +10,7 @@ function Get-EosHostConfig {
     )
 
     # It's nice to be able to see what cmdlet is throwing output isn't it?
-    $VerbosePrefix = "Get-EosHostConfig:"
+    $VerbosePrefix = "Get-EosTimeConfig:"
 
     # Check for path and import
     if ($ConfigPath) {
@@ -23,13 +23,17 @@ function Get-EosHostConfig {
 
     # Setup Return Object
     $ReturnObjectProps = @()
-    $ReturnObjectProps += "MgmtInterface"
-    $ReturnObjectProps += "IpAddress"
-    $ReturnObjectProps += "Name"
-    $ReturnObjectProps += "Prompt"
-    $ReturnObjectProps += "Location"
+    $ReturnObjectProps += "SntpMode"
+    $ReturnObjectProps += "SntpServer"
+    $ReturnObjectProps += "TimeZone"
+    $ReturnObjectProps += "SummerTimeEnabled"
+    $ReturnObjectProps += "SummerTimeStart"
+    $ReturnObjectProps += "SummerTimeStop"
+    $ReturnObjectProps += "SummerTimeOffset"
 
     $ReturnObject = "" | Select-Object $ReturnObjectProps
+    $ReturnObject.SntpServer = @()
+    $ReturnObject.SntpMode = 'broadcast'
 
     function CheckIfFinished() {
         $NotDone = $true
@@ -71,73 +75,65 @@ function Get-EosHostConfig {
         #############################################
         # Universal Commands
 
-        # set system name "<name>"
-        $EvalParams.Regex = [regex] '^set\ system\ name\ "?([^"]+)"?'
-        $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
-        if ($Eval) {
-            $ReturnObject.Name = $Eval
-            if (CheckIfFinished) { break fileloop }
-            continue
-        }
-
-        # set prompt "<prompt>"
-        $EvalParams.Regex = [regex] '^set\ prompt\ "?([^"]+)"?'
-        $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
-        if ($Eval) {
-            $ReturnObject.Prompt = $Eval
-            if (CheckIfFinished) { break fileloop }
-            continue
-        }
-
-        # set system location "<location>"
-        $EvalParams.Regex = [regex] '^set\ system\ location\ "?([^"]+)"?'
-        $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
-        if ($Eval) {
-            $ReturnObject.Location = $Eval
-            if (CheckIfFinished) { break fileloop }
-            continue
-        }
-
-        #############################################
-        # SecureStack Commands
-
-        # host vlan
-        $EvalParams.Regex = [regex] "^set\ host\ vlan\ (\d+)"
-        $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
-        if ($Eval) {
-            $ReturnObject.MgmtInterface = "vlan.0.$Eval"
-            if (CheckIfFinished) { break fileloop }
-            continue
-        }
-
-        # set ip address <ip> mask <mask> gateway <gateway>
-        $EvalParams.Regex = [regex] "^set\ ip\ address\ (?<ip>$IpRx)\ mask\ (?<mask>$IpRx)\ gateway\ (?<gateway>$IpRx)"
+        # set timezone <name> <hour> <minute>
+        $EvalParams.Regex = [regex] "^set\ timezone\ '(?<name>.+?)'\ (?<hour>[-\d]+)\ (?<minute>\d+)"
         $Eval = Get-RegexMatch @EvalParams
         if ($Eval) {
-            $ReturnObject.IpAddress = $Eval.Groups['ip'].Value + '/' + (ConvertTo-MaskLength $Eval.Groups['mask'].Value)
+            $ReturnObject.TimeZone = ([int]($Eval.Groups['hour'].Value) * 60) + [int]($Eval.Groups['minute'].Value)
             if (CheckIfFinished) { break fileloop }
             continue
         }
 
-        #############################################
-        # Core Series (S/K) Commands
+        # set summertime enable
+        $EvalParams.Regex = [regex] '^set\ summertime\ enable'
+        $Eval = Get-RegexMatch @EvalParams
+        if ($Eval) {
+            $ReturnObject.SummerTimeEnabled = $true
+            if (CheckIfFinished) { break fileloop }
+            continue
+        }
 
-        # set ip interface <ipinterface> default
-        $EvalParams.Regex = [regex] "^set\ ip\ interface\ ([^\ ]+)"
+        # set summertime recurring second Sunday March 02:00 first Sunday November 02:00 60
+        $EvalParams.Regex = [regex] '^set\ summertime\ recurring\ (?<startweek>.+?)\ (?<startday>.+?)\ (?<startmonth>.+?)\ (?<starttime>\d+:\d+)\ (?<stopweek>\w+?)\ (?<stopday>\w+?)\ (?<stopmonth>\w+?)\ (?<stoptime>\d+:\d+)\ (?<offset>\d+)'
+        $Eval = Get-RegexMatch @EvalParams
+        if ($Eval) {
+            $StartString = $Eval.Groups['startweek'].Value + '-'
+            $StartString += $Eval.Groups['startday'].Value + '-'
+            $StartString += $Eval.Groups['startmonth'].Value + '@'
+            $StartString += $Eval.Groups['starttime'].Value
+
+            $StopString = $Eval.Groups['stopweek'].Value + '-'
+            $StopString += $Eval.Groups['stopday'].Value + '-'
+            $StopString += $Eval.Groups['stopmonth'].Value + '@'
+            $StopString += $Eval.Groups['stoptime'].Value
+
+            $Offset = $Eval.Groups['offset'].Value
+
+            $ReturnObject.SummerTimeStart = $StartString
+            $ReturnObject.SummerTimeStop = $StopString
+            $ReturnObject.SummerTimeOffset = $Offset
+
+            if (CheckIfFinished) { break fileloop }
+            continue
+        }
+
+        # set sntp client unicast
+        $EvalParams.Regex = [regex] '^set\ sntp\ client\ unicast'
+        $Eval = Get-RegexMatch @EvalParams
+        if ($Eval) {
+            $ReturnObject.SntpMode = 'unicast'
+            if (CheckIfFinished) { break fileloop }
+            continue
+        }
+
+        # set sntp server <server>
+        $EvalParams.Regex = [regex] "^set\ sntp\ server\ ($IpRx)"
         $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
         if ($Eval) {
-            $ReturnObject.MgmtInterface = $Eval
-            $ReturnObject.IpAddress = (Get-EosIpInterface -ConfigArray $LoopArray -Name $ReturnObject.MgmtInterface).IpAddress[0]
+            $ReturnObject.SntpServer += $Eval
             if (CheckIfFinished) { break fileloop }
             continue
         }
-
-    }
-    #############################################
-    # Choose loop.0.1 if no management interface has been detected
-    if (!($ReturnObject.IpAddress)) {
-        $ReturnObject.IpAddress = (Get-EosIpInterface -ConfigArray $LoopArray -Name 'loopback 1').IpAddress[0]
-        $ReturnObject.MgmtInterface = 'loop.0.1'
     }
 
     return $ReturnObject

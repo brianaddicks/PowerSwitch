@@ -1,4 +1,4 @@
-function Get-EosDiscoveryNeighbor {
+function Get-EosDhcpSnoopingConfig {
     [CmdletBinding(DefaultParametersetName = "path")]
 
     Param (
@@ -10,7 +10,7 @@ function Get-EosDiscoveryNeighbor {
     )
 
     # It's nice to be able to see what cmdlet is throwing output isn't it?
-    $VerbosePrefix = "Get-EosDiscoveryNeighbor:"
+    $VerbosePrefix = "Get-EosDhcpSnoopingConfig:"
 
     # Check for path and import
     if ($ConfigPath) {
@@ -21,8 +21,14 @@ function Get-EosDiscoveryNeighbor {
         $LoopArray = $ConfigArray
     }
 
-    # Setup return Array
-    $ReturnArray = @()
+    $Ports = Get-EosPortName -ConfigArray $LoopArray
+
+    # Setup ReturnObject
+    $ReturnObject = @{}
+    $ReturnObject.Enabled = $false
+    $ReturnObject.EnabledVlans = @()
+    $ReturnObject.VerifyMacAddress = $True
+    $ReturnObject.TrustedPorts = @()
 
     $IpRx = [regex] "(\d+)\.(\d+)\.(\d+)\.(\d+)"
 
@@ -42,64 +48,59 @@ function Get-EosDiscoveryNeighbor {
             $StopWatch.Start()
         }
 
-        if ($entry -eq "") {
-            if ($KeepGoing) {
-                Write-Verbose "$VerbosePrefix $i`: neighbor output complete"
-                break
-            } else {
-                continue
-            }
-        }
+        if ($entry -eq "") { continue }
 
         ###########################################################################################
         # Check for the Section
 
-        $Regex = [regex] 'show nei'
+        $Regex = [regex] '^#(\ )?dhcpsnooping$'
         $Match = Get-RegexMatch $Regex $entry
         if ($Match) {
-            Write-Verbose "$VerbosePrefix $i`: 'show neighbors' found"
-            $OutputStart = $true
+            Write-Verbose "$VerbosePrefix $i`: dhcpsnooping: config started"
+            $KeepGoing = $true
             continue
-        }
-
-        if ($OutputStart) {
-            $Regex = [regex] '^-+$'
-            $Match = Get-RegexMatch $Regex $entry
-            if ($Match) {
-                Write-Verbose "$VerbosePrefix $i`: neighbor output starting"
-                $KeepGoing = $true
-                continue
-            }
         }
 
         if ($KeepGoing) {
             $EvalParams = @{}
             $EvalParams.StringToEval = $entry
 
-            # vlan create
-            $EvalParams.Regex = [regex] "^(?<localport>.+?)\ +(?<deviceid>.+?)\ +(?<remoteport>[^\ ]+?)?\ +(?<type>[^\ ]+?[dD][pP])\ +((?<networkaddress>.+)(\ )?)?"
+            # set dhcpsnooping enable
+            $EvalParams.Regex = [regex] "^set\ dhcpsnooping\ enable"
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
-                $global:eval = $eval
-                Write-Verbose "$VerbosePrefix $i`: neighbor found"
-                $new = "" | Select-Object LocalPort, DeviceId, RemotePort, Type, NetworkAddress
-
-                $new.LocalPort = $Eval.Groups['localport'].Value
-                $new.DeviceId = $Eval.Groups['deviceid'].Value
-                $new.RemotePort = $Eval.Groups['remoteport'].Value
-                $new.Type = $Eval.Groups['type'].Value
-                $new.NetworkAddress = $Eval.Groups['networkaddress'].Value
-
-                $ReturnArray += $new
+                $ReturnObject.Enabled = $true
             }
 
-            $Regex = [regex] '^$'
+            $EvalParams.ReturnGroupNumber = 1
+
+            # set dhcpsnooping vlan <vlan-string> enable
+            $EvalParams.Regex = [regex] "^set\ dhcpsnooping\ vlan\ (.+?)\ enable"
+            $Eval = Get-RegexMatch @EvalParams
+            if ($Eval) {
+                $ReturnObject.EnabledVlans += (Resolve-VlanString -VlanString $Eval -SwitchType 'Eos')
+            }
+
+            # set dhcpsnooping verify mac-address disable
+            $EvalParams.Regex = [regex] "^set\ dhcpsnooping\ verify\ mac-address\ (disable)"
+            $Eval = Get-RegexMatch @EvalParams
+            if ($Eval) {
+                $ReturnObject.VerifyMacAddress = $false
+            }
+
+            # set dhcpsnooping trust port <port> enable
+            $EvalParams.Regex = [regex] "^set\ dhcpsnooping\ trust\ port\ (.+?)\ enable"
+            $Eval = Get-RegexMatch @EvalParams
+            if ($Eval) {
+                $ReturnObject.TrustedPorts += $Eval
+            }
+
+            $Regex = [regex] '^#'
             $Match = Get-RegexMatch $Regex $entry
             if ($Match) {
-                Write-Verbose "$VerbosePrefix $i`: neighbor output complete"
                 break
             }
         }
     }
-    return $ReturnArray
+    return $ReturnObject
 }

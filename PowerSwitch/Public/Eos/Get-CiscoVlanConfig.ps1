@@ -1,4 +1,4 @@
-function Get-EosDiscoveryNeighbor {
+function Get-CiscoVlanConfig {
     [CmdletBinding(DefaultParametersetName = "path")]
 
     Param (
@@ -10,7 +10,7 @@ function Get-EosDiscoveryNeighbor {
     )
 
     # It's nice to be able to see what cmdlet is throwing output isn't it?
-    $VerbosePrefix = "Get-EosDiscoveryNeighbor:"
+    $VerbosePrefix = "Get-CiscoVlanConfig:"
 
     # Check for path and import
     if ($ConfigPath) {
@@ -25,6 +25,7 @@ function Get-EosDiscoveryNeighbor {
     $ReturnArray = @()
 
     $IpRx = [regex] "(\d+)\.(\d+)\.(\d+)\.(\d+)"
+    $Slot = 0
 
     $TotalLines = $LoopArray.Count
     $i = 0
@@ -43,61 +44,59 @@ function Get-EosDiscoveryNeighbor {
         }
 
         if ($entry -eq "") {
-            if ($KeepGoing) {
-                Write-Verbose "$VerbosePrefix $i`: neighbor output complete"
+            if ($InModule) {
                 break
-            } else {
-                continue
             }
+            continue
         }
 
         ###########################################################################################
         # Check for the Section
 
-        $Regex = [regex] 'show nei'
+        $Regex = [regex] '^-+\ show\ vlan\ -+$'
         $Match = Get-RegexMatch $Regex $entry
         if ($Match) {
-            Write-Verbose "$VerbosePrefix $i`: 'show neighbors' found"
-            $OutputStart = $true
+            Write-Verbose "$VerbosePrefix $i`: 'show vlan' found"
+            $SlotStart = $true
             continue
         }
 
-        if ($OutputStart) {
-            $Regex = [regex] '^-+$'
+        if ($SlotStart) {
+            $Regex = [regex] '^(-+\ +)+-+$'
             $Match = Get-RegexMatch $Regex $entry
             if ($Match) {
-                Write-Verbose "$VerbosePrefix $i`: neighbor output starting"
-                $KeepGoing = $true
+                Write-Verbose "$VerbosePrefix $i`: vlan output starting"
+                $InModule = $true
                 continue
             }
         }
 
-        if ($KeepGoing) {
+        if ($InModule) {
             $EvalParams = @{}
             $EvalParams.StringToEval = $entry
 
-            # vlan create
-            $EvalParams.Regex = [regex] "^(?<localport>.+?)\ +(?<deviceid>.+?)\ +(?<remoteport>[^\ ]+?)?\ +(?<type>[^\ ]+?[dD][pP])\ +((?<networkaddress>.+)(\ )?)?"
+            # vlan id, name, status
+            $EvalParams.Regex = [regex] "^(?<id>\d+)\s+(?<name>[^\ ]+?)\s+(?<status>[^\ ]+?)\s+"
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
-                $global:eval = $eval
-                Write-Verbose "$VerbosePrefix $i`: neighbor found"
-                $new = "" | Select-Object LocalPort, DeviceId, RemotePort, Type, NetworkAddress
+                $Slot++
+                $VlanId = [int]($Eval.Groups['id'].Value)
+                Write-Verbose "$VerbosePrefix $i`: vlan found $VlanId"
+                $new = [Vlan]::new($VlanId)
+                $new.Name = $Eval.Groups['name'].Value
 
-                $new.LocalPort = $Eval.Groups['localport'].Value
-                $new.DeviceId = $Eval.Groups['deviceid'].Value
-                $new.RemotePort = $Eval.Groups['remoteport'].Value
-                $new.Type = $Eval.Groups['type'].Value
-                $new.NetworkAddress = $Eval.Groups['networkaddress'].Value
+                if ($Eval.Groups['status'].Value -match 'act') {
+                    $new.Enabled = $true
+                }
 
                 $ReturnArray += $new
             }
 
-            $Regex = [regex] '^$'
-            $Match = Get-RegexMatch $Regex $entry
-            if ($Match) {
-                Write-Verbose "$VerbosePrefix $i`: neighbor output complete"
-                break
+            # firmware version
+            $EvalParams.Regex = [regex] "^\s+?Fw:(\ )?(?<fw>[\d\.]+)"
+            $Eval = Get-RegexMatch @EvalParams
+            if ($Eval) {
+                $new.Firmware = $Eval.Groups['fw'].Value
             }
         }
     }

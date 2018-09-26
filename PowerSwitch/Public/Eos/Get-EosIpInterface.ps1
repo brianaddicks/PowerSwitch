@@ -50,10 +50,10 @@ function Get-EosIpInterface {
         ###########################################################################################
         # Check for the Section
 
-        $Regex = [regex] '^configure terminal$'
+        $Regex = [regex] '^configure(\ terminal)?$'
         $Match = Get-RegexMatch $Regex $entry
         if ($Match) {
-            Write-Verbose "$VerbosePrefix $i`: vlan: config started"
+            Write-Verbose "$VerbosePrefix $i`: router: config started"
             $KeepGoing = $true
             continue
         }
@@ -64,16 +64,18 @@ function Get-EosIpInterface {
 
             # interface <name>
             if ($Name) {
-                $EvalParams.Regex = [regex] "^\ +interface\ ($Name)"
+                $EvalParams.Regex = [regex] "^\ *interface\ ($Name)"
             } else {
-                $EvalParams.Regex = [regex] "^\ +interface\ (.+)"
+                $entry
+                $EvalParams.Regex = [regex] "^\ *interface\ (.+)"
             }
             $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
             if ($Eval) {
-                $New = [IpInterface]::new($Eval)
+                $InterfaceName = $Eval -replace ' ', '.0.'
+                $New = [IpInterface]::new($InterfaceName)
 
-                $EvalParams.Regex = [regex] "vlan\.0\.(\d+)"
-                $CheckVlan = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
+                $EvalParams.Regex = [regex] "vlan(\.0\.|\ )(\d+)"
+                $CheckVlan = Get-RegexMatch @EvalParams -ReturnGroupNumber 2
                 if ($CheckVlan) {
                     $New.VlanId = $CheckVlan
                 }
@@ -85,7 +87,7 @@ function Get-EosIpInterface {
 
             if ($InInterface) {
                 # interface <name>
-                $EvalParams.Regex = [regex] "^\ +ip\ address\ (?<ip>$IpRx)\ (?<mask>$IpRx)"
+                $EvalParams.Regex = [regex] "^\ *ip\ address\ (?<ip>$IpRx)\ (?<mask>$IpRx)"
                 $Eval = Get-RegexMatch @EvalParams
                 if ($Eval) {
                     $New.IpAddress += ($Eval.Groups['ip'].Value + '/' + (ConvertTo-MaskLength $Eval.Groups['mask'].Value))
@@ -93,7 +95,7 @@ function Get-EosIpInterface {
                 }
 
                 # ip pim <mode>
-                $EvalParams.Regex = [regex] "^\ +ip\ pim\ (.+)"
+                $EvalParams.Regex = [regex] "^\ *ip\ pim\ (.+)"
                 $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
                 if ($Eval) {
                     $New.PimMode = $Eval
@@ -101,7 +103,7 @@ function Get-EosIpInterface {
                 }
 
                 # ip helper-address <helper>
-                $EvalParams.Regex = [regex] "^\ +ip\ helper-address\ (.+)"
+                $EvalParams.Regex = [regex] "^\ *ip\ helper-address\ (.+)"
                 $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
                 if ($Eval) {
                     $New.IpHelper += $Eval
@@ -109,7 +111,7 @@ function Get-EosIpInterface {
                 }
 
                 # no shutdown
-                $EvalParams.Regex = [regex] "^\ +no\ shutdown"
+                $EvalParams.Regex = [regex] "^\ *no\ shutdown"
                 $Eval = Get-RegexMatch @EvalParams
                 if ($Eval) {
                     $New.Enabled = $true
@@ -117,7 +119,7 @@ function Get-EosIpInterface {
                 }
 
                 # no ip redirects
-                $EvalParams.Regex = [regex] "^\ +no\ ip\ redirects"
+                $EvalParams.Regex = [regex] "^\ *no\ ip\ redirects"
                 $Eval = Get-RegexMatch @EvalParams
                 if ($Eval) {
                     $New.IpRedirectsEnabled = $false
@@ -125,7 +127,7 @@ function Get-EosIpInterface {
                 }
 
                 # exit interface
-                $Regex = [regex] '^\ +exit'
+                $Regex = [regex] '^\ *exit'
                 $Match = Get-RegexMatch $Regex $entry
                 if ($Match) {
                     if ($Name) {

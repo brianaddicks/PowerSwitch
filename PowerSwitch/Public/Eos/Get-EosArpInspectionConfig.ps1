@@ -1,4 +1,4 @@
-function Get-EosDiscoveryNeighbor {
+function Get-EosArpInspectionConfig {
     [CmdletBinding(DefaultParametersetName = "path")]
 
     Param (
@@ -10,7 +10,7 @@ function Get-EosDiscoveryNeighbor {
     )
 
     # It's nice to be able to see what cmdlet is throwing output isn't it?
-    $VerbosePrefix = "Get-EosDiscoveryNeighbor:"
+    $VerbosePrefix = "Get-EosArpInspectionConfig:"
 
     # Check for path and import
     if ($ConfigPath) {
@@ -21,8 +21,12 @@ function Get-EosDiscoveryNeighbor {
         $LoopArray = $ConfigArray
     }
 
-    # Setup return Array
-    $ReturnArray = @()
+    $Ports = Get-EosPortName -ConfigArray $LoopArray
+
+    # Setup ReturnObject
+    $ReturnObject = @{}
+    $ReturnObject.TrustedPort = @()
+    $ReturnObject.EnabledVlan = @()
 
     $IpRx = [regex] "(\d+)\.(\d+)\.(\d+)\.(\d+)"
 
@@ -42,64 +46,44 @@ function Get-EosDiscoveryNeighbor {
             $StopWatch.Start()
         }
 
-        if ($entry -eq "") {
-            if ($KeepGoing) {
-                Write-Verbose "$VerbosePrefix $i`: neighbor output complete"
-                break
-            } else {
-                continue
-            }
-        }
+        if ($entry -eq "") { continue }
 
         ###########################################################################################
         # Check for the Section
 
-        $Regex = [regex] 'show nei'
+        $Regex = [regex] '^#(\ )?arpinspection$'
         $Match = Get-RegexMatch $Regex $entry
         if ($Match) {
-            Write-Verbose "$VerbosePrefix $i`: 'show neighbors' found"
-            $OutputStart = $true
+            Write-Verbose "$VerbosePrefix $i`: arpinspection: config started"
+            $KeepGoing = $true
             continue
-        }
-
-        if ($OutputStart) {
-            $Regex = [regex] '^-+$'
-            $Match = Get-RegexMatch $Regex $entry
-            if ($Match) {
-                Write-Verbose "$VerbosePrefix $i`: neighbor output starting"
-                $KeepGoing = $true
-                continue
-            }
         }
 
         if ($KeepGoing) {
             $EvalParams = @{}
             $EvalParams.StringToEval = $entry
+            $EvalParams.ReturnGroupNumber = 1
 
-            # vlan create
-            $EvalParams.Regex = [regex] "^(?<localport>.+?)\ +(?<deviceid>.+?)\ +(?<remoteport>[^\ ]+?)?\ +(?<type>[^\ ]+?[dD][pP])\ +((?<networkaddress>.+)(\ )?)?"
+            # set arpinspection vlan <vlan-id>
+            $EvalParams.Regex = [regex] "^set\ arpinspection\ vlan\ (\d+)"
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
-                $global:eval = $eval
-                Write-Verbose "$VerbosePrefix $i`: neighbor found"
-                $new = "" | Select-Object LocalPort, DeviceId, RemotePort, Type, NetworkAddress
-
-                $new.LocalPort = $Eval.Groups['localport'].Value
-                $new.DeviceId = $Eval.Groups['deviceid'].Value
-                $new.RemotePort = $Eval.Groups['remoteport'].Value
-                $new.Type = $Eval.Groups['type'].Value
-                $new.NetworkAddress = $Eval.Groups['networkaddress'].Value
-
-                $ReturnArray += $new
+                $ReturnObject.EnabledVlan += $Eval
             }
 
-            $Regex = [regex] '^$'
+            # set arpinspection trust port <port> enable
+            $EvalParams.Regex = [regex] "^set\ arpinspection\ trust\ port\ (.+?)\ enable"
+            $Eval = Get-RegexMatch @EvalParams
+            if ($Eval) {
+                $ReturnObject.TrustedPort += $Eval
+            }
+
+            $Regex = [regex] '^#'
             $Match = Get-RegexMatch $Regex $entry
             if ($Match) {
-                Write-Verbose "$VerbosePrefix $i`: neighbor output complete"
                 break
             }
         }
     }
-    return $ReturnArray
+    return $ReturnObject
 }
