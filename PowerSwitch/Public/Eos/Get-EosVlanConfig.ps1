@@ -82,7 +82,7 @@ function Get-EosVlanConfig {
 
             # vlan name
             $EvalParams.Remove('ReturnGroupNumber')
-            $EvalParams.Regex = [regex] "set\ vlan\ name\ (?<id>\d+)\ (?<name>.+)"
+            $EvalParams.Regex = [regex] 'set\ vlan\ name\ (?<id>\d+)\ "?(?<name>[^"]+)"?'
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
                 $VlanId = $Eval.Groups['id'].Value
