@@ -1,9 +1,11 @@
 Class Port {
     [string]$Name
     [string]$Alias
+    [bool]$Shutdown = $false
 
     [int]$NativeVlan
     [int]$UntaggedVlan
+    [int]$VoiceVlan
     [int[]]$TaggedVlan
 
     [string]$OperStatus
@@ -12,8 +14,11 @@ Class Port {
     [string]$Duplex
     [string]$Type
     [string]$Mode
-    [string]$StpMode
 
+    [string]$StpMode
+    [bool]$BpduGuard = $false
+
+    [bool]$DhcpSnoopingTrust = $false
     ##################################### Initiators #####################################
     # Initiator
 

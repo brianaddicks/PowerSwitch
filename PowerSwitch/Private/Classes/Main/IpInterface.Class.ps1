@@ -1,5 +1,6 @@
 Class IpInterface {
     [string]$Name
+    [string]$Description
     [string[]]$IpAddress
     [string]$VlanId
     [string[]]$IpHelper

@@ -1,4 +1,4 @@
-function Get-CiscoPortConfig {
+function Get-CiscoIpInterface {
     [CmdletBinding(DefaultParametersetName = "path")]
 
     Param (
@@ -10,7 +10,7 @@ function Get-CiscoPortConfig {
     )
 
     # It's nice to be able to see what cmdlet is throwing output isn't it?
-    $VerbosePrefix = "Get-CiscoPortConfig:"
+    $VerbosePrefix = "Get-CiscoIpInterface:"
 
     # Check for path and import
     if ($ConfigPath) {
@@ -25,7 +25,6 @@ function Get-CiscoPortConfig {
     $ReturnArray = @()
 
     $IpRx = [regex] "(\d+)\.(\d+)\.(\d+)\.(\d+)"
-    $Slot = 0
 
     $TotalLines = $LoopArray.Count
     $i = 0
@@ -55,15 +54,18 @@ function Get-CiscoPortConfig {
 
         $EvalParams = @{}
         $EvalParams.StringToEval = $entry
-        $EvalParams.Regex = [regex] "^interface\ (.+)"
-        $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
+        $EvalParams.Regex = [regex] "^interface\ (?<type>Vlan|Loopback)(?<value>.+)"
+        $Eval = Get-RegexMatch @EvalParams
         if ($Eval) {
             Write-Verbose "$VerbosePrefix $i`: interface found: $Eval"
-            if ($Eval -match 'Vlan|Loopback') {
-                continue
+            $Type = $Eval.Groups['type'].Value
+            $Value = $Eval.Groups['value'].Value
+            $Name = $Type + $Value
+            $new = [IpInterface]::new($Name)
+            if ($Type -eq 'Vlan') {
+                $new.VlanId = $Value
             }
-            $new = [Port]::new($Eval)
-            $new.Mode = 'access'
+            $new.Enabled = $true
             $ReturnArray += $new
             $KeepGoing = $true
             continue
@@ -73,76 +75,29 @@ function Get-CiscoPortConfig {
             $EvalParams = @{}
             $EvalParams.StringToEval = $entry
 
-            # switchport mode
-            $EvalParams.Regex = [regex] "^\ +switchport\ mode\ (.+)"
-            $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
-            if ($Eval) {
-                $new.Mode = $Eval
-                continue
-            }
-
-            # switchport trunk allowed vlan
-            $EvalParams.Regex = [regex] "^\ +switchport\ trunk\ allowed\ vlan\ (.+)"
-            $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
-            if ($Eval) {
-                $new.TaggedVlan = $Eval.Split(',')
-                continue
-            }
-
-            # switchport trunk native vlan
-            $EvalParams.Regex = [regex] "^\ +switchport\ trunk\ native\ vlan\ (.+)"
-            $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
-            if ($Eval) {
-                $new.TaggedVlan = $new.TaggedVlans | Where-Object { $_ -ne $Eval }
-                $new.UntaggedVlan = $Eval
-                continue
-            }
-
-            # switchport access vlan
-            $EvalParams.Regex = [regex] "^\ +switchport\ access\ vlan\ (.+)"
-            $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
-            if ($Eval) {
-                $new.UntaggedVlan = $Eval
-                continue
-            }
-
-            # switchport voice vlan
-            $EvalParams.Regex = [regex] "^\ +switchport\ voice\ vlan\ (.+)"
-            $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
-            if ($Eval) {
-                $new.VoiceVlan = $Eval
-                continue
-            }
-
             # description
             $EvalParams.Regex = [regex] "^\ +description\ (.+)"
             $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
             if ($Eval) {
-                $new.Alias = $Eval
+                $new.Description = $Eval
                 continue
             }
 
-            # spanning-tree bpduguard enable
-            $EvalParams.Regex = [regex] "^\ +spanning-tree bpduguard enable"
+            # ip address
+            $EvalParams.Regex = [regex] "^\ +ip\ address\ (?<ip>$IpRx)\ (?<mask>$IpRx)"
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
-                $new.BpduGuard = $true
+                $IpAndMask = $Eval.Groups['ip'].Value
+                $IpAndMask += '/' + ($Eval.Groups['mask'].Value | ConvertTo-MaskLength)
+                $new.IpAddress += $IpAndMask
                 continue
             }
 
-            # spanning-tree mode
-            $EvalParams.Regex = [regex] "^\ +spanning-tree (.+)"
+            # ip helper-address
+            $EvalParams.Regex = [regex] "^\ +ip\ helper-address\ ($IpRx)"
             $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
             if ($Eval) {
-                $new.StpMode = $Eval
-                continue
-            }
-
-            # ip dhcp snooping trust
-            $EvalParams.Regex = [regex] "^\ +ip\ dhcp\ snooping\ trust"
-            $Eval = Get-RegexMatch @EvalParams
-            if ($Eval) {
-                $new.DhcpSnoopingTrust = $true
+                $new.IpHelper += $Eval
                 continue
             }
 
@@ -150,7 +105,7 @@ function Get-CiscoPortConfig {
             $EvalParams.Regex = [regex] "^\ +shutdown"
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
-                $new.Shutdown = $false
+                $new.Enabled = $false
                 continue
             }
 
