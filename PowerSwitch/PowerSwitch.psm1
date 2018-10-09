@@ -1,23 +1,56 @@
-#Get public and private function definition files.
-$Public  = @( Get-ChildItem -Path $PSScriptRoot/Public/*.ps1 -Recurse -ErrorAction SilentlyContinue )
-$Private = @( Get-ChildItem -Path $PSScriptRoot/Private/*.ps1 -Recurse -ErrorAction SilentlyContinue )
+# cribbed this from https://www.powershellgallery.com/packages/Idempotion
 
-#Dot source the files
-Foreach($import in @($Public + $Private))
-{
-    Try
-    {
-        . $import.fullname
+$Subs = @(
+    @{
+        Path    = 'Classes'
+        Export  = $false
+        Recurse = $true
+        Filter  = '*.Class.ps1'
+        Exclude = @(
+            '*.Tests.ps1'
+        )
+    } ,
+
+    @{
+        Path    = 'Private'
+        Export  = $false
+        Recurse = $false
+        Filter  = '*-*.ps1'
+        Exclude = @(
+            '*.Tests.ps1'
+        )
+    } ,
+
+    @{
+        Path    = 'Public'
+        Export  = $true
+        Recurse = $true
+        Filter  = '*-*.ps1'
+        Exclude = @(
+            '*.Tests.ps1'
+        )
     }
-    Catch
-    {
-        Write-Error -Message "Failed to import function $($import.fullname): $_"
+)
+
+
+$thisModule = [System.IO.Path]::GetFileNameWithoutExtension($PSCommandPath)
+$varName = "__${thisModule}_Export_All"
+$exportAll = Get-Variable -Scope Global -Name $varName -ValueOnly -ErrorAction Ignore
+
+$Subs | ForEach-Object -Process {
+    $sub = $_
+    $thisDir = $PSScriptRoot | Join-Path -ChildPath $sub.Path | Join-Path -ChildPath '*'
+    $thisDir |
+        Get-ChildItem -Filter $sub.Filter -Exclude $sub.Exclude -Recurse:$sub.Recurse -ErrorAction Ignore | ForEach-Object -Process {
+        try {
+            $Unit = $_.FullName
+            . $Unit
+            if ($sub.Export -or $exportAll) {
+                Export-ModuleMember -Function $_.BaseName -Alias *
+            }
+        } catch {
+            $e = "Could not import '$Unit' with exception: `n`n`n$($_.Exception)" -as $_.Exception.GetType()
+            throw $e
+        }
     }
 }
-
-# Here I might...
-# Read in or create an initial config file and variable
-# Export Public functions ($Public.BaseName) for WIP modules
-# Set variables visible to the module and its functions only
-
-Export-ModuleMember -Function $Public.Basename
