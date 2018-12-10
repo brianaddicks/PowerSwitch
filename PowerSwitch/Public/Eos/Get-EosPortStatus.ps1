@@ -49,13 +49,13 @@ function Get-EosPortStatus {
         # Check for the Section
 
         $Regex = [regex] '(?x)
-                          ^(?<port>-+?)\
-                          (?<alias>-+?)\
-                          (?<oper>-+?)\
-                          (?<admin>-+?)\
-                          (?<speed>-+?)\
-                          (?<duplex>-+?)\
-                          (?<type>-+)'
+                          ^(?<port>-+?)
+                          \ (?<alias>-+?)
+                          \ (?<oper>-+?)
+                          \ (?<admin>-+?)
+                          \ (?<speed>-+?)
+                          \ (?<duplex>-+?)
+                          \ (?<type>-+)'
         $Eval = Get-RegexMatch $Regex $entry
         if ($Eval) {
             Write-Verbose "$VerbosePrefix $i`: port status: output started"
@@ -106,5 +106,9 @@ function Get-EosPortStatus {
             }
         }
     }
-    return $ReturnArray
+    if ($ReturnArray.Count -eq 0) {
+        Throw "$VerbosePrefix No Port Status found, requires output from 'show port status'"
+    } else {
+        return $ReturnArray
+    }
 }
