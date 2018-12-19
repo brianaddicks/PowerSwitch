@@ -32,6 +32,9 @@ function Get-PsSpantreeConfig {
         'HpComware' {
             $ReturnObject = Get-HpCwSpantreeConfig -ConfigArray $LoopArray
         }
+        'Cisco' {
+            $ReturnObject = Get-CiscoSpantreeConfig -ConfigArray $LoopArray
+        }
         default {
             Throw "$VerbosePrefix SwitchType not handled '$PsSwitchType'"
         }
