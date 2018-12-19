@@ -1,4 +1,4 @@
-function Get-PsSpantreeConfig {
+function Get-PsDhcpSnoopingConfig {
     [CmdletBinding(DefaultParametersetName = "path")]
 
     Param (
@@ -13,7 +13,7 @@ function Get-PsSpantreeConfig {
     )
 
     # It's nice to be able to see what cmdlet is throwing output isn't it?
-    $VerbosePrefix = "Get-PsSpantreeConfig:"
+    $VerbosePrefix = "Get-PsDhcpSnoopingConfig:"
 
     # Check for path and import
     if ($ConfigPath) {
@@ -27,16 +27,16 @@ function Get-PsSpantreeConfig {
     # Get the switch type
     switch ($PsSwitchType) {
         'ExtremeEos' {
-            $ReturnObject = Get-EosSpantreeConfig -ConfigArray $LoopArray
+            $ReturnObject = Get-EosDhcpSnoopingConfig -ConfigArray $LoopArray
         }
         'HpComware' {
-            $ReturnObject = Get-HpCwSpantreeConfig -ConfigArray $LoopArray
+            $ReturnObject = Get-HpDhcpSnoopingConfig -ConfigArray $LoopArray
         }
         'Cisco' {
-            $ReturnObject = Get-CiscoSpantreeConfig -ConfigArray $LoopArray
+            $ReturnObject = Get-CiscoDhcpSnoopingConfig -ConfigArray $LoopArray
         }
         'HpAruba' {
-            $ReturnObject = Get-HpArubaSpantreeConfig -ConfigArray $LoopArray
+            $ReturnObject = Get-HpArubaDhcpSnoopingConfig -ConfigArray $LoopArray
         }
         default {
             Throw "$VerbosePrefix SwitchType not handled '$PsSwitchType'"
