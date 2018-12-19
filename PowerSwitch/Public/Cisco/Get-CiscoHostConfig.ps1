@@ -81,6 +81,15 @@ function Get-CiscoHostConfig {
             if (CheckIfFinished) { break fileloop }
             continue
         }
+
+        # snmp-server location <location>
+        $EvalParams.Regex = [regex] '^snmp-server\ location\ (.+)'
+        $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
+        if ($Eval) {
+            $ReturnObject.Location = $Eval
+            if (CheckIfFinished) { break fileloop }
+            continue
+        }
     }
     #############################################
     # Choose interface used for default gateway if no other option
