@@ -1,4 +1,4 @@
-function Get-HpCwStaticRoute {
+function Get-CiscoStaticRoute {
     [CmdletBinding(DefaultParametersetName = "path")]
 
     Param (
@@ -10,7 +10,7 @@ function Get-HpCwStaticRoute {
     )
 
     # It's nice to be able to see what cmdlet is throwing output isn't it?
-    $VerbosePrefix = "Get-HpCwStaticRoute:"
+    $VerbosePrefix = "Get-CiscoStaticRoute:"
 
     # Check for path and import
     if ($ConfigPath) {
@@ -54,8 +54,8 @@ function Get-HpCwStaticRoute {
         #############################################
         # Universal Commands
 
-        # ip route-static <network> <mask> <nexthop>
-        $EvalParams.Regex = [regex] '^\ ip\ route-static\ (?<network>.+?)\ (?<mask>.+?)\ (?<gateway>.+)'
+        # ip route <network> <mask> <nexthop>
+        $EvalParams.Regex = [regex] '^ip\ route\ (?<network>.+?)\ (?<mask>.+?)\ (?<gateway>.+)'
         $Eval = Get-RegexMatch @EvalParams
         if ($Eval) {
             $Destination = $Eval.Groups['network'].Value + '/' + (ConvertTo-MaskLength $Eval.Groups['mask'].Value)
@@ -63,6 +63,22 @@ function Get-HpCwStaticRoute {
             $new = [IpRoute]::new()
             $new.Destination = $Destination
             $new.NextHop = $Eval.Groups['gateway'].Value
+            $new.Type = 'static'
+
+            Write-Verbose "$VerbosePrefix IpRoute Found: $($new.Destination)"
+
+            $ReturnObject += $new
+            continue
+        }
+
+        # ip default-gateway <nexthop>
+        $EvalParams.Regex = [regex] '^ip\ default-gateway\ (.+)'
+        $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
+        if ($Eval) {
+
+            $new = [IpRoute]::new()
+            $new.Destination = '0.0.0.0/0'
+            $new.NextHop = $Eval
             $new.Type = 'static'
 
             Write-Verbose "$VerbosePrefix IpRoute Found: $($new.Destination)"

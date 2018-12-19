@@ -57,6 +57,8 @@ function Get-HpCwIpInterface {
         $EvalParams = @{}
         $EvalParams.StringToEval = $entry
         $EvalParams.Regex = [regex] "^interface\ (?<type>Vlan-interface|Loopback)(?<value>.+)"
+        $EvalParams.LineNumber = $i
+
         $Eval = Get-RegexMatch @EvalParams
         if ($Eval) {
             Write-Verbose "$VerbosePrefix $i`: interface found: $Eval"
@@ -76,6 +78,7 @@ function Get-HpCwIpInterface {
         if ($KeepGoing) {
             $EvalParams = @{}
             $EvalParams.StringToEval = $entry
+            $EvalParams.LineNumber = $i
 
             # description
             $EvalParams.Regex = [regex] "^\ +description\ (.+)"

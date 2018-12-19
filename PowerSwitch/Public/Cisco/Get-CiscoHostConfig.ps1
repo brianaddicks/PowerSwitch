@@ -1,4 +1,4 @@
-function Get-HpCwHostConfig {
+function Get-CiscoHostConfig {
     [CmdletBinding(DefaultParametersetName = "path")]
 
     Param (
@@ -10,7 +10,7 @@ function Get-HpCwHostConfig {
     )
 
     # It's nice to be able to see what cmdlet is throwing output isn't it?
-    $VerbosePrefix = "Get-HpCwHostConfig:"
+    $VerbosePrefix = "Get-CiscoHostConfig:"
 
     # Check for path and import
     if ($ConfigPath) {
@@ -73,7 +73,7 @@ function Get-HpCwHostConfig {
         # Universal Commands
 
         # sysname <name>
-        $EvalParams.Regex = [regex] '^\ sysname\ (.+)'
+        $EvalParams.Regex = [regex] '^hostname\ (.+)'
         $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
         if ($Eval) {
             $ReturnObject.Name = $Eval
@@ -85,9 +85,9 @@ function Get-HpCwHostConfig {
     #############################################
     # Choose interface used for default gateway if no other option
     if (!($ReturnObject.IpAddress)) {
-        $IpRoute = Get-HpCwStaticRoute -ConfigArray $LoopArray
+        $IpRoute = Get-CiscoStaticRoute -ConfigArray $LoopArray
         if ($IpRoute) {
-            $IpInterface = Get-HpCwIpInterface -ConfigArray $LoopArray
+            $IpInterface = Get-CiscoIpInterface -ConfigArray $LoopArray
 
             $DefaultRoute = $IpRoute | Where-Object { $_.Destination -eq '0.0.0.0/0' }
             Write-Verbose "$VerbosePrefix Lookup for NextHop: $($DefaultRoute.NextHop)"

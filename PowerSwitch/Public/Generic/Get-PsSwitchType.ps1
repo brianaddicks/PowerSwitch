@@ -66,6 +66,18 @@ function Get-PsSwitchType {
         }
 
         ###########################################################################################
+        # HP Aruba
+
+        $EvalParams = @{}
+        $EvalParams.StringToEval = $entry
+        $EvalParams.Regex = [regex] '^;\ hpStack_WC\ Configuration\ Editor;'
+        $Eval = Get-RegexMatch @EvalParams
+        if ($Eval) {
+            $PsSwitchType = "HpAruba"
+            break fileloop
+        }
+
+        ###########################################################################################
         # Cisco
 
         $EvalParams = @{}

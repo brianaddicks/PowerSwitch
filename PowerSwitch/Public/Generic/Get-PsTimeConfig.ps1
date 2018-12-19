@@ -1,4 +1,4 @@
-function Get-PsHostConfig {
+function Get-PsTimeConfig {
     [CmdletBinding(DefaultParametersetName = "path")]
 
     Param (
@@ -13,7 +13,7 @@ function Get-PsHostConfig {
     )
 
     # It's nice to be able to see what cmdlet is throwing output isn't it?
-    $VerbosePrefix = "Get-PsHostConfig:"
+    $VerbosePrefix = "Get-PsTimeConfig:"
 
     # Check for path and import
     if ($ConfigPath) {
@@ -26,11 +26,11 @@ function Get-PsHostConfig {
 
     # Get the switch type
     switch ($PsSwitchType) {
-        'HpComware' {
-            $ReturnObject = Get-HpCwHostConfig -ConfigArray $LoopArray
-        }
         'Cisco' {
-            $ReturnObject = Get-CiscoHostConfig -ConfigArray $LoopArray
+            $ReturnObject = Get-CiscoTimeConfig -ConfigArray $LoopArray
+        }
+        'HpComware' {
+            $ReturnObject = Get-HpCwTimeConfig -ConfigArray $LoopArray
         }
         default {
             Throw "$VerbosePrefix SwitchType not handled '$PsSwitchType'"

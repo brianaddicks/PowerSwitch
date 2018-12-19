@@ -60,9 +60,12 @@ function Get-HpCwSpantreeConfig {
         if ($Eval) {
             if ($null -eq $ReturnObject) {
                 $ReturnObject = [SpantreeConfig]::new()
+                $ReturnObject.NonAdminEdgePorts = $Ports.Name | Where-Object { $_ -notmatch "Vlan|Null" }
+                $ReturnObject.AdminEnabledPorts = $Ports.Name | Where-Object { $_ -notmatch "Vlan|Null" }
+                $ReturnObject.SpanGuardEnabled = $false
+                $ReturnObject.AutoEdgeEnabled = $true
             }
             $ReturnObject.Mode = $Eval
-            $ReturnObject.NonAdminEdgePorts = $Ports.Name | Where-Object { $_ -notmatch "Vlan|Null" }
         }
 
         # stp enable
@@ -71,9 +74,12 @@ function Get-HpCwSpantreeConfig {
         if ($Eval) {
             if ($null -eq $ReturnObject) {
                 $ReturnObject = [SpantreeConfig]::new()
+                $ReturnObject.NonAdminEdgePorts = $Ports.Name | Where-Object { $_ -notmatch "Vlan|Null" }
+                $ReturnObject.AdminEnabledPorts = $Ports.Name | Where-Object { $_ -notmatch "Vlan|Null" }
+                $ReturnObject.SpanGuardEnabled = $false
+                $ReturnObject.AutoEdgeEnabled = $true
             }
             $ReturnObject.Enabled = $true
-            $ReturnObject.NonAdminEdgePorts = $Ports.Name | Where-Object { $_ -notmatch "Vlan|Null" }
         }
 
         # interface config match

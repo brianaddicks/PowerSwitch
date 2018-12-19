@@ -1,4 +1,4 @@
-function Get-HpCwStaticRoute {
+function Get-HpCwSnmpConfig {
     [CmdletBinding(DefaultParametersetName = "path")]
 
     Param (
@@ -10,7 +10,7 @@ function Get-HpCwStaticRoute {
     )
 
     # It's nice to be able to see what cmdlet is throwing output isn't it?
-    $VerbosePrefix = "Get-HpCwStaticRoute:"
+    $VerbosePrefix = "Get-HpCwSnmpConfig:"
 
     # Check for path and import
     if ($ConfigPath) {
@@ -22,7 +22,11 @@ function Get-HpCwStaticRoute {
     }
 
     # Setup Return Object
-    $ReturnObjectProps = @()
+    $ReturnObject = @{}
+    $ReturnObject.Community = @()
+    $ReturnObject.AllowedHost = @()
+    $ReturnObject.Trap = @()
+    $ReturnObject.Source
 
     $IpRx = [regex] "(\d+)\.(\d+)\.(\d+)\.(\d+)"
 
@@ -54,20 +58,35 @@ function Get-HpCwStaticRoute {
         #############################################
         # Universal Commands
 
-        # ip route-static <network> <mask> <nexthop>
-        $EvalParams.Regex = [regex] '^\ ip\ route-static\ (?<network>.+?)\ (?<mask>.+?)\ (?<gateway>.+)'
+        # snmp-agent community <access> <community>  acl <acl-number>
+        $EvalParams.Regex = [regex] '^\ snmp-agent\ community\ (?<access>.+?)\ (?<community>[^\ ]+)'
         $Eval = Get-RegexMatch @EvalParams
         if ($Eval) {
-            $Destination = $Eval.Groups['network'].Value + '/' + (ConvertTo-MaskLength $Eval.Groups['mask'].Value)
+            $new = "" | Select-Object Community, Version, Access
+            $new.Community = $Eval.Groups['community'].Value
+            $new.Access = $Eval.Groups['access'].Value
+            $new.Version = 'v2'
+            $ReturnObject.Community += $new
+            continue
+        }
 
-            $new = [IpRoute]::new()
-            $new.Destination = $Destination
-            $new.NextHop = $Eval.Groups['gateway'].Value
-            $new.Type = 'static'
+        # snmp-agent target-host trap address udp-domain <server> params securityname <community> <version>
+        $EvalParams.Regex = [regex] '^\ snmp-agent\ target-host\ trap\ address\ udp-domain\ (?<target>.+?)\ params\ securityname\ (?<community>.+?)\ (?<version>.+)'
+        $Eval = Get-RegexMatch @EvalParams
+        if ($Eval) {
+            $new = "" | Select-Object Target, Community, Version
+            $new.Community = $Eval.Groups['community'].Value
+            $new.Target = $Eval.Groups['target'].Value
+            $new.Version = $Eval.Groups['version'].Value
+            $ReturnObject.Trap += $new
+            continue
+        }
 
-            Write-Verbose "$VerbosePrefix IpRoute Found: $($new.Destination)"
-
-            $ReturnObject += $new
+        # snmp-agent trap source <source>
+        $EvalParams.Regex = [regex] '^\ snmp-agent trap source (.+)'
+        $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
+        if ($Eval) {
+            $ReturnObject.Source = $Eval
             continue
         }
     }

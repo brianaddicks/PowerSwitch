@@ -1,6 +1,6 @@
 Class TimeConfig {
     $SntpMode
-    $SntpServer
+    [array]$SntpServer
     $TimeZoneName
     $TimeZoneOffsetMinutes
     $SummerTimeEnabled

@@ -1,4 +1,4 @@
-function Get-HpCwStaticRoute {
+function Get-CiscoSnmpConfig {
     [CmdletBinding(DefaultParametersetName = "path")]
 
     Param (
@@ -10,7 +10,7 @@ function Get-HpCwStaticRoute {
     )
 
     # It's nice to be able to see what cmdlet is throwing output isn't it?
-    $VerbosePrefix = "Get-HpCwStaticRoute:"
+    $VerbosePrefix = "Get-CiscoSnmpConfig:"
 
     # Check for path and import
     if ($ConfigPath) {
@@ -22,7 +22,9 @@ function Get-HpCwStaticRoute {
     }
 
     # Setup Return Object
-    $ReturnObjectProps = @()
+    $ReturnObject = @{}
+    $ReturnObject.Community = @()
+    $ReturnObject.AllowedHost = @()
 
     $IpRx = [regex] "(\d+)\.(\d+)\.(\d+)\.(\d+)"
 
@@ -54,20 +56,23 @@ function Get-HpCwStaticRoute {
         #############################################
         # Universal Commands
 
-        # ip route-static <network> <mask> <nexthop>
-        $EvalParams.Regex = [regex] '^\ ip\ route-static\ (?<network>.+?)\ (?<mask>.+?)\ (?<gateway>.+)'
+        # snmp-server community <community> <accesstype>
+        $EvalParams.Regex = [regex] '^snmp-server\ community\ (?<community>.+?)\ (?<access>.+)'
         $Eval = Get-RegexMatch @EvalParams
         if ($Eval) {
-            $Destination = $Eval.Groups['network'].Value + '/' + (ConvertTo-MaskLength $Eval.Groups['mask'].Value)
+            $new = "" | Select-Object Community, Version, Access
+            $new.Community = $Eval.Groups['community'].Value
+            $new.Access = $Eval.Groups['access'].Value
+            $new.Version = 'v2'
+            $ReturnObject.Community += $new
+            continue
+        }
 
-            $new = [IpRoute]::new()
-            $new.Destination = $Destination
-            $new.NextHop = $Eval.Groups['gateway'].Value
-            $new.Type = 'static'
-
-            Write-Verbose "$VerbosePrefix IpRoute Found: $($new.Destination)"
-
-            $ReturnObject += $new
+        # snmp-server host <server> <community>
+        $EvalParams.Regex = [regex] '^snmp-server\ host\ (.+)\ '
+        $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
+        if ($Eval) {
+            $ReturnObject.AllowedHost += $Eval
             continue
         }
     }
