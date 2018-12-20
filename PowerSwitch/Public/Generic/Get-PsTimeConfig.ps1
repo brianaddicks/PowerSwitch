@@ -32,6 +32,9 @@ function Get-PsTimeConfig {
         'HpComware' {
             $ReturnObject = Get-HpCwTimeConfig -ConfigArray $LoopArray
         }
+        'HpAruba' {
+            $ReturnObject = Get-HpArubaTimeConfig -ConfigArray $LoopArray
+        }
         default {
             Throw "$VerbosePrefix SwitchType not handled '$PsSwitchType'"
         }
