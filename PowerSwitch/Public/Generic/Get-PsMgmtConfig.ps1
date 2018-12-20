@@ -1,4 +1,4 @@
-function Get-PsPortName {
+function Get-PsMgmtConfig {
     [CmdletBinding(DefaultParametersetName = "path")]
 
     Param (
@@ -13,7 +13,7 @@ function Get-PsPortName {
     )
 
     # It's nice to be able to see what cmdlet is throwing output isn't it?
-    $VerbosePrefix = "Get-PsIpInterface:"
+    $VerbosePrefix = "Get-PsMgmtConfig:"
 
     # Check for path and import
     if ($ConfigPath) {
@@ -26,17 +26,14 @@ function Get-PsPortName {
 
     # Get the switch type
     switch ($PsSwitchType) {
-        'ExtremeEos' {
-            $ReturnObject = Get-EosPortName -ConfigArray $LoopArray
+        'Cisco' {
+            $ReturnObject = Get-CiscoMgmtConfig -ConfigArray $LoopArray
         }
         'HpComware' {
-            $ReturnObject = Get-HpCwPortName -ConfigArray $LoopArray
+            $ReturnObject = Get-HpCwMgmtConfig -ConfigArray $LoopArray
         }
         'HpAruba' {
-            $ReturnObject = Get-HpArubaPortName -ConfigArray $LoopArray
-        }
-        'Cisco' {
-            $ReturnObject = Get-CiscoPortName -ConfigArray $LoopArray
+            $ReturnObject = Get-HpArubaMgmtConfig -ConfigArray $LoopArray
         }
         default {
             Throw "$VerbosePrefix SwitchType not handled '$PsSwitchType'"
