@@ -10,4 +10,8 @@ Class Vlan {
     Vlan([int]$VlanId) {
         $this.Id = $VlanId
     }
+
+    Vlan([string]$VlanName) {
+        $this.Name = $VlanName
+    }
 }
