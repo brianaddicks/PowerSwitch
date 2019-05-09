@@ -50,49 +50,55 @@ function Get-ExosVlanConfig {
         $EvalParams = @{}
         $EvalParams.StringToEval = $entry
 
-        $EvalParams.Regex = [regex] "^#\ Module\ eaps\ configuration"
+        $EvalParams.Regex = [regex] "^#\ Module\ vlan\ configuration"
         $Eval = Get-RegexMatch @EvalParams
         if ($Eval) {
-            Write-Verbose "$VerbosePrefix $i`: eaps: config started"
+            Write-Verbose "$VerbosePrefix $i`: vlan: config started"
             $KeepGoing = $true
             continue
         }
 
         if ($KeepGoing) {
-            $EvalParams.Regex = [regex] '^enable\ eaps$'
-            $Eval = Get-RegexMatch @EvalParams
-            if ($Eval) {
-                Write-Verbose "$VerbosePrefix $i`: eaps: enabled"
-                $ReturnObject.Enabled = $true
-                continue
-            }
-
-
             # create vlan "(vlan-name)"
-            $EvalParams.Regex = [regex] "^configure\ eaps\ (?<domain>.+?)\ mode\ (?<mode>.+)"
+            $EvalParams.Regex = [regex] "^create\ vlan\ `"(?<vlanname>.+?)`""
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
-                $New = [Vlan]::new($NAMEVARIABLE)
-
-
-                $Domain = $Eval.Groups['domain'].Value
-                $Mode = $Eval.Groups['mode'].Value
-                Write-Verbose "$VerbosePrefix $i`: eaps: domain '$Domain' mode: $Mode"
-                $DomainLookup = $ReturnObject.Domain | Where-Object { $_.Name -eq $Domain }
-                $DomainLookup.Mode = $Mode
+                $VlanName = $Eval.Groups['vlanname'].Value
+                Write-Verbose "$VerbosePrefix $i`: vlan: name '$VlanName'"
+                $New = [Vlan]::new($VlanName)
+                $ReturnArray += $New
                 continue
             }
 
-
-            # configure eaps <domain> mode <mode>
-            $EvalParams.Regex = [regex] "^configure\ eaps\ (?<domain>.+?)\ mode\ (?<mode>.+)"
+            # configure vlan tag
+            $EvalParams.Regex = [regex] "^configure\ vlan\ `"?(?<vlanname>.+?)`"?\ tag\ (?<vlantag>.+)"
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
-                $Domain = $Eval.Groups['domain'].Value
-                $Mode = $Eval.Groups['mode'].Value
-                Write-Verbose "$VerbosePrefix $i`: eaps: domain '$Domain' mode: $Mode"
-                $DomainLookup = $ReturnObject.Domain | Where-Object { $_.Name -eq $Domain }
-                $DomainLookup.Mode = $Mode
+                $VlanName = $Eval.Groups['vlanname'].Value
+                $VlanTag = $Eval.Groups['vlantag'].Value
+                Write-Verbose "$VerbosePrefix $i`: vlan: name '$VlanName' tag: $VlanTag"
+                $VlanLookup = $ReturnArray | Where-Object { $_.Name -eq $VlanName }
+                $VlanLookup.Id = $VlanTag
+                continue
+            }
+
+            # adding ports to vlan
+            $EvalParams.Regex = [regex] "^configure\ vlan\ `"?(?<vlanname>.+?)`"?\ add\ ports\ (?<portnumber>.+)\ (?<type>tagged|untagged)"
+            $Eval = Get-RegexMatch @EvalParams
+            if ($Eval) {
+                $VlanName = $Eval.Groups['vlanname'].Value
+                $PortNumber = $Eval.Groups['portnumber'].Value
+                $Type = $Eval.Groups['type'].Value
+                Write-Verbose "$VerbosePrefix $i`: vlan: name '$VlanName' port: $PortNumber type: $Type"
+                $VlanLookup = $ReturnArray | Where-Object { $_.Name -eq $VlanName }
+                switch ($Type) {
+                    'tagged' {
+                        $VlanLookup.TaggedPorts = $PortNumber
+                    }
+                    'untagged' {
+                        $VlanLookup.UntaggedPorts = $PortNumber
+                    }
+                }
                 continue
             }
 
