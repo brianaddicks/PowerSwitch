@@ -93,10 +93,10 @@ function Get-ExosVlanConfig {
                 $VlanLookup = $ReturnArray | Where-Object { $_.Name -eq $VlanName }
                 switch ($Type) {
                     'tagged' {
-                        $VlanLookup.TaggedPorts = $PortNumber
+                        $VlanLookup.TaggedPorts += Resolve-PortString -PortString $PortNumber -SwitchType 'Exos'
                     }
                     'untagged' {
-                        $VlanLookup.UntaggedPorts = $PortNumber
+                        $VlanLookup.UntaggedPorts += Resolve-PortString -PortString $PortNumber -SwitchType 'Exos'
                     }
                 }
                 continue
@@ -112,5 +112,5 @@ function Get-ExosVlanConfig {
         }
     }
 
-    return $ReturnObject
+    return $ReturnArray
 }
