@@ -11,6 +11,10 @@ Class IpInterface {
     # multicast
     [string]$PimMode
 
+    #EXOS
+    [bool]$IpForwardingEnabled
+    [bool]$IpMulticastForwardingEnabled
+
     ##################################### Initiators #####################################
     # Initiator
     IpInterface([string]$Name) {
