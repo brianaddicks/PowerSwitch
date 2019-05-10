@@ -24,6 +24,8 @@ function Get-ExosIpInterface {
     # Setup return Array
     $IpRx = [regex] "(\d+)\.(\d+)\.(\d+)\.(\d+)"
     $ReturnArray = @()
+    $ReturnArray += [IpInterface]::new(1)
+    $ReturnArray[0].Name = "Default"
 
     $TotalLines = $LoopArray.Count
     $i = 0
@@ -58,6 +60,19 @@ function Get-ExosIpInterface {
         }
 
         if ($KeepGoing) {
+             # configure vlan tag
+             $EvalParams.Regex = [regex] "^configure\ vlan\ (?<vlanname>.+?)\ tag\ (?<vlantag>.+)"
+             $Eval = Get-RegexMatch @EvalParams
+             if ($Eval) {
+                 $VlanName = $Eval.Groups['vlanname'].Value
+                $VlanTag = $Eval.Groups['vlantag'].Value
+                Write-Verbose "$VerbosePrefix $i`: vlan: name '$VlanName' tag: $VlanTag"
+                $New = [IpInterface]::new($VlanName)
+                $ReturnArray += $New
+                $IpInterfaceLookup = $ReturnArray | Where-Object { $_.Name -eq $VlanName }
+                $IpInterfaceLookup.VlanId = $VlanTag
+                 continue
+             }
             # configure vlan "(vlan name)" ipaddress "(ipaddress) (mask)" 
             $EvalParams.Regex = [regex] "^configure\ vlan\ (?<vlanname>.+?)\ ipaddress (?<ip>$IpRx)\ (?<mask>$IpRx)"
             $Eval = Get-RegexMatch @EvalParams
@@ -67,8 +82,6 @@ function Get-ExosIpInterface {
                 $MaskIPV4Math = $Eval.Groups['mask'].Value
                 $Mask = ConvertTo-MaskLength $MaskIPV4Math
                 Write-Verbose "$VerbosePrefix $i`: vlan: name '$VlanName' ip '$IP/$Mask'"
-                $New = [IpInterface]::new($VlanName)
-                $ReturnArray += $New
                 $IpInterfaceLookup = $ReturnArray | Where-Object { $_.Name -eq $VlanName }
                 $IpInterfaceLookup.IpAddress = "$IP/$Mask"
                 $IpInterfaceLookup.Enabled = $True
@@ -76,7 +89,7 @@ function Get-ExosIpInterface {
             }
 
             # enable ipforwarding vlan "(vlan name)"
-            $EvalParams.Regex = [regex] "^(?<type>enable|disable)\ (?<ipforward>ipforwarding|ipmcforwarding)\ vlan\ (?<vlanname>.+?)"
+            $EvalParams.Regex = [regex] "^(?<type>enable|disable)\ (?<ipforward>ipforwarding|ipmcforwarding)\ vlan\ (?<vlanname>.+)"
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
                 $VlanName = $Eval.Groups['vlanname'].Value
@@ -109,26 +122,6 @@ function Get-ExosIpInterface {
                 continue
             }
 
-            # # adding ports to vlan
-            # $EvalParams.Regex = [regex] "^configure\ vlan\ `"?(?<vlanname>.+?)`"?\ add\ ports\ (?<portnumber>.+)\ (?<type>tagged|untagged)"
-            # $Eval = Get-RegexMatch @EvalParams
-            # if ($Eval) {
-            #     $VlanName = $Eval.Groups['vlanname'].Value
-            #     $PortNumber = $Eval.Groups['portnumber'].Value
-            #     $Type = $Eval.Groups['type'].Value
-            #     Write-Verbose "$VerbosePrefix $i`: vlan: name '$VlanName' port: $PortNumber type: $Type"
-            #     $VlanLookup = $ReturnArray | Where-Object { $_.Name -eq $VlanName }
-            #     switch ($Type) {
-            #         'tagged' {
-            #             $VlanLookup.TaggedPorts += Resolve-PortString -PortString $PortNumber -SwitchType 'Exos'
-            #         }
-            #         'untagged' {
-            #             $VlanLookup.UntaggedPorts += Resolve-PortString -PortString $PortNumber -SwitchType 'Exos'
-            #         }
-            #     }
-            #     continue
-            # }
-
 
             # next config section
             $EvalParams.Regex = [regex] "^(#)\ "
@@ -139,5 +132,5 @@ function Get-ExosIpInterface {
         }
     }
 
-    return $ReturnArray | Where-Object { $_.Name -eq "Voice" }
+    return $ReturnArray
 }
