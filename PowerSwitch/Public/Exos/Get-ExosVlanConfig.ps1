@@ -101,7 +101,17 @@ function Get-ExosVlanConfig {
                 }
                 continue
             }
-
+             # configure vlan (vlan name) description ("description") 
+             $EvalParams.Regex = [regex] "^configure\ vlan\ (?<vlanname>.+?)\ description\ `"(?<description>.+)`""
+             $Eval = Get-RegexMatch @EvalParams
+             if ($Eval) {
+                 $VlanName = $Eval.Groups['vlanname'].Value
+                $VlanDes = $Eval.Groups['description'].Value
+                Write-Verbose "$VerbosePrefix $i`: vlan: name '$VlanName' description: $VlanDes"
+                $VlanLookup = $ReturnArray | Where-Object { $_.Name -eq $VlanName }
+                $VlanLookup.Description = $VlanDes
+                 continue
+             }
 
             # next config section
             $EvalParams.Regex = [regex] "^(#)\ "

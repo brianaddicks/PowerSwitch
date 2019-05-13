@@ -4,6 +4,7 @@ Class IpInterface {
     [string[]]$IpAddress
     [string]$VlanId
     [string[]]$IpHelper
+    [bool]$IpHelperEnabled
 
     [bool]$Enabled
     [bool]$IpRedirectsEnabled = $true
