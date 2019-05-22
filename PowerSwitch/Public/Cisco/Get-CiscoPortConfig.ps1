@@ -150,7 +150,7 @@ function Get-CiscoPortConfig {
             $EvalParams.Regex = [regex] "^\ +shutdown"
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
-                $new.Shutdown = $false
+                $new.AdminStatus = "False"
                 continue
             }
 
