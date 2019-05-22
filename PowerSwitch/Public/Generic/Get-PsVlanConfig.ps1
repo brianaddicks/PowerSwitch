@@ -9,6 +9,7 @@ function Get-PsVlanConfig {
         [array]$ConfigArray,
 
         [Parameter(Mandatory = $True, Position = 1)]
+        [ValidateSet('ExtremeEos', 'HpComware', 'HpAruba', 'Cisco')]
         [string]$PsSwitchType
     )
 
