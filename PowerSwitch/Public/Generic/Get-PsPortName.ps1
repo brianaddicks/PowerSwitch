@@ -9,11 +9,12 @@ function Get-PsPortName {
         [array]$ConfigArray,
 
         [Parameter(Mandatory = $True, Position = 1)]
+        [ValidateSet('ExtremeEos', 'HpComware', 'HpAruba', 'Cisco')]
         [string]$PsSwitchType
     )
 
     # It's nice to be able to see what cmdlet is throwing output isn't it?
-    $VerbosePrefix = "Get-PsIpInterface:"
+    $VerbosePrefix = "Get-PsPortName:"
 
     # Check for path and import
     if ($ConfigPath) {
