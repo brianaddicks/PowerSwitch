@@ -87,7 +87,8 @@ function Get-ExosVlanConfig {
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
                 $VlanName = $Eval.Groups['vlanname'].Value
-                $PortNumber = $Eval.Groups['portnumber'].Value
+                $PortNumber1 = $Eval.Groups['portnumber'].Value
+                $PortNumber = $PortNumber1 -replace ' ',''
                 $Type = $Eval.Groups['type'].Value
                 Write-Verbose "$VerbosePrefix $i`: vlan: name '$VlanName' port: $PortNumber type: $Type"
                 $VlanLookup = $ReturnArray | Where-Object { $_.Name -eq $VlanName }
