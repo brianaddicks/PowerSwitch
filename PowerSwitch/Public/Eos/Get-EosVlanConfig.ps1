@@ -76,7 +76,7 @@ function Get-EosVlanConfig {
                 Write-Verbose "$VerbosePrefix $i`: vlan: create"
                 $ResolvedVlans = Resolve-VlanString -VlanString $Eval -SwitchType 'Eos'
                 foreach ($r in $ResolvedVlans) {
-                    $ReturnArray += [Vlan]::new($r)
+                    $ReturnArray += [Vlan]::new([int]$r)
                 }
             }
 
