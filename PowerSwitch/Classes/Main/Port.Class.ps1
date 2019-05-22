@@ -1,7 +1,6 @@
 Class Port {
     [string]$Name
     [string]$Alias
-    [bool]$Shutdown = $false
 
     [int]$NativeVlan
     [int]$UntaggedVlan

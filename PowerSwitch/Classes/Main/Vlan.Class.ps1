@@ -4,6 +4,8 @@ Class Vlan {
     [string[]]$UntaggedPorts
     [string[]]$TaggedPorts
     [bool]$Enabled = $true
+    #Exos#
+    [string]$Description
 
     ##################################### Initiators #####################################
     # Initiator
