@@ -4,12 +4,17 @@ Class IpInterface {
     [string[]]$IpAddress
     [string]$VlanId
     [string[]]$IpHelper
+    [bool]$IpHelperEnabled
 
     [bool]$Enabled
     [bool]$IpRedirectsEnabled = $true
 
     # multicast
     [string]$PimMode
+
+    #EXOS
+    [bool]$IpForwardingEnabled
+    [bool]$IpMulticastForwardingEnabled
 
     ##################################### Initiators #####################################
     # Initiator
