@@ -107,7 +107,7 @@ function Get-PsSwitchType {
         $EvalParams.Regex = [regex] "^#(\ Chassis)?\ Firmware\ Revision:\ +\d+"
         $Eval = Get-RegexMatch @EvalParams
         if ($Eval) {
-            $PsSwitchType = "Eos"
+            $PsSwitchType = "ExtremeEos"
             break fileloop
         }
 

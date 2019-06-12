@@ -35,6 +35,9 @@ function Get-PsTimeConfig {
         'HpAruba' {
             $ReturnObject = Get-HpArubaTimeConfig -ConfigArray $LoopArray
         }
+        'ExtremeEos' {
+            $ReturnObject = Get-EosTimeConfig -ConfigArray $LoopArray
+        }
         default {
             Throw "$VerbosePrefix SwitchType not handled '$PsSwitchType'"
         }

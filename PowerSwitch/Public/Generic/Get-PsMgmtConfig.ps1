@@ -35,6 +35,9 @@ function Get-PsMgmtConfig {
         'HpAruba' {
             $ReturnObject = Get-HpArubaMgmtConfig -ConfigArray $LoopArray
         }
+        'ExtremeEos' {
+            $ReturnObject = Get-EosMgmtConfig -ConfigArray $LoopArray
+        }
         default {
             Throw "$VerbosePrefix SwitchType not handled '$PsSwitchType'"
         }

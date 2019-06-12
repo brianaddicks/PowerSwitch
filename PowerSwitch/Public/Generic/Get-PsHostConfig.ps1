@@ -32,6 +32,9 @@ function Get-PsHostConfig {
         'Cisco' {
             $ReturnObject = Get-CiscoHostConfig -ConfigArray $LoopArray
         }
+        'ExtremeEos' {
+            $ReturnObject = Get-EosHostConfig -ConfigArray $LoopArray
+        }
         default {
             Throw "$VerbosePrefix SwitchType not handled '$PsSwitchType'"
         }
