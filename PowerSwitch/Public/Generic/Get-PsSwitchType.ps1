@@ -99,6 +99,21 @@ function Get-PsSwitchType {
             }
         }
 
+        #region Enterasys
+        ###########################################################################################
+
+        $EvalParams = @{}
+        $EvalParams.StringToEval = $entry
+        $EvalParams.Regex = [regex] "^#(\ Chassis)?\ Firmware\ Revision:\ +\d+"
+        $Eval = Get-RegexMatch @EvalParams
+        if ($Eval) {
+            $PsSwitchType = "Eos"
+            break fileloop
+        }
+
+        ###########################################################################################
+        #endregion Enterasys
+
     }
 
     if (!($PsSwitchType)) {
