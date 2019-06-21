@@ -51,7 +51,7 @@ function Get-CiscoAaaConfig {
         ###########################################################################################
         # Check for the Section
 
-        $EvalParams = @{}
+        $EvalParams = @{ }
         $EvalParams.StringToEval = $entry
         $EvalParams.Regex = [regex] "^aaa\ group\ server\ (?<type>.+)\ .+"
         $Eval = Get-RegexMatch @EvalParams

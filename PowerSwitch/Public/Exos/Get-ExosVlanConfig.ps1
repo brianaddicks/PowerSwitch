@@ -47,7 +47,7 @@ function Get-ExosVlanConfig {
         ###########################################################################################
         # Check for the Section
 
-        $EvalParams = @{}
+        $EvalParams = @{ }
         $EvalParams.StringToEval = $entry
 
         $EvalParams.Regex = [regex] "^#\ Module\ vlan\ configuration"
@@ -88,7 +88,7 @@ function Get-ExosVlanConfig {
             if ($Eval) {
                 $VlanName = $Eval.Groups['vlanname'].Value
                 $PortNumber1 = $Eval.Groups['portnumber'].Value
-                $PortNumber = $PortNumber1 -replace ' ',''
+                $PortNumber = $PortNumber1 -replace ' ', ''
                 $Type = $Eval.Groups['type'].Value
                 Write-Verbose "$VerbosePrefix $i`: vlan: name '$VlanName' port: $PortNumber type: $Type"
                 $VlanLookup = $ReturnArray | Where-Object { $_.Name -eq $VlanName }
@@ -102,17 +102,17 @@ function Get-ExosVlanConfig {
                 }
                 continue
             }
-             # configure vlan (vlan name) description ("description") 
-             $EvalParams.Regex = [regex] "^configure\ vlan\ (?<vlanname>.+?)\ description\ `"(?<description>.+)`""
-             $Eval = Get-RegexMatch @EvalParams
-             if ($Eval) {
-                 $VlanName = $Eval.Groups['vlanname'].Value
+            # configure vlan (vlan name) description ("description")
+            $EvalParams.Regex = [regex] "^configure\ vlan\ (?<vlanname>.+?)\ description\ `"(?<description>.+)`""
+            $Eval = Get-RegexMatch @EvalParams
+            if ($Eval) {
+                $VlanName = $Eval.Groups['vlanname'].Value
                 $VlanDes = $Eval.Groups['description'].Value
                 Write-Verbose "$VerbosePrefix $i`: vlan: name '$VlanName' description: $VlanDes"
                 $VlanLookup = $ReturnArray | Where-Object { $_.Name -eq $VlanName }
                 $VlanLookup.Description = $VlanDes
-                 continue
-             }
+                continue
+            }
 
             # next config section
             $EvalParams.Regex = [regex] "^(#)\ "
