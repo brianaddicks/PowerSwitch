@@ -27,6 +27,8 @@ function Get-EosRouteTable {
 
     $IpRx = [regex] "(\d+)\.(\d+)\.(\d+)\.(\d+)"
     $RouteTypeMap = @{}
+    $IpInterface = Get-EosIpInterface -ConfigArray $LoopArray
+    Write-Verbose "$VerbosePrefix $($IpInterface.Count) IpInterfaces found"
 
     $TotalLines = $LoopArray.Count
     $i = 0
@@ -53,17 +55,25 @@ function Get-EosRouteTable {
         $EvalParams.StringToEval = $entry
 
         # start route table
-        $EvalParams.Regex = [regex] '^IP\ Route\ Table'
+        $EvalParams.Regex = [regex] '(^(INET|IP)\ (R|r)oute\ (T|t)able|#show\ ip\ route$)'
         $Eval = Get-RegexMatch @EvalParams
         if ($Eval) {
             Write-Verbose "$VerbosePrefix $i`: Found Route Table start"
             $KeepGoing = $true
+            continue
         }
 
         if ($KeepGoing) {
+            # end of section
+            $EvalParams.Regex = [regex] '(Number\ of\ routes|->)'
+            $Eval = Get-RegexMatch @EvalParams
+            if ($Eval) {
+                Write-Verbose "$VerbosePrefix $i`: route table: section complete"
+                break
+            }
 
             # type codes
-            $Regex = [regex] '(?<code>[^\s]+?)-(?<type>.+?)(,|$)'
+            $Regex = [regex] '(?<code>[^\s]+?)\s?-\s?(?<type>.+?)(,|$)'
             $Eval = $Regex.Matches($entry)
             if ($Eval.Success) {
                 Write-Verbose "$VerbosePrefix $i`: found codes"
@@ -71,17 +81,49 @@ function Get-EosRouteTable {
                     $Code = $match.Groups['code'].Value.Trim()
                     $Type = $match.Groups['type'].Value.Trim()
                     $RouteTypeMap.$Code = $Type
+                    continue
                 }
             }
 
-            # route table line
+            # route table line securestack router context
+            $EvalParams.Regex = [regex] "^(?<type>[\*\w]+)\s+(?<destination>$IpRx\/\d+)\s\[\d+\/\d+\]\s(via\s+(?<nexthop>$IpRx)|directly)"
+            $Eval = Get-RegexMatch @EvalParams
+            if ($Eval) {
+                $Type = ($Eval.Groups['type'].Value).Trim()
+                $Destination = ($Eval.Groups['destination'].Value).Trim()
+                $NextHop = ($Eval.Groups['nexthop'].Value).Trim()
+                Write-Verbose "$VerbosePrefix $i`: route table: securestack with router context: adding route $Destination -> $NextHop ($Type)"
+
+                $NewEntry = [IpRoute]::new()
+                $NewEntry.Type = $RouteTypeMap.$Type
+                $NewEntry.Destination = $Destination
+
+                # Lookup IP Interface
+                if ($NewEntry.Type -eq 'connected') {
+                    Write-Verbose "$VerbosePrefix $i`: type is connected, looking for IpInterface"
+                    foreach ($ip in $IpInterface.IpAddress) {
+                        $ThisIpInterface = $IpInterface | Where-Object { Test-IpInRange -ContainingNetwork $Destination -ContainedNetwork $ip }
+                        if ($ThisIpInterface) {
+                            $NewEntry.NextHop = $ip -replace '/\d+', ''
+
+                        }
+                    }
+                } else {
+                    $NewEntry.NextHop = $NextHop
+                }
+
+                $ReturnArray += $NewEntry
+                continue
+            }
+
+            # route table line 7100
             $EvalParams.Regex = [regex] "^(?<type>\w+)\s+(?<destination>$IpRx\/\d+)\s+\[\d+\/\d+\]\s+\w+\s+(?<nexthop>$IpRx)?"
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
                 $Type = ($Eval.Groups['type'].Value).Trim()
                 $Destination = ($Eval.Groups['destination'].Value).Trim()
                 $NextHop = ($Eval.Groups['nexthop'].Value).Trim()
-                Write-Verbose "$VerbosePrefix $i`: route table: adding route $Destination -> $NextHop ($Type)"
+                Write-Verbose "$VerbosePrefix $i`: route table: 7100: adding route $Destination -> $NextHop ($Type)"
 
                 $NewEntry = [IpRoute]::new()
                 $NewEntry.Type = $RouteTypeMap.$Type
@@ -89,12 +131,30 @@ function Get-EosRouteTable {
                 $NewEntry.NextHop = $NextHop
 
                 $ReturnArray += $NewEntry
+                continue
             }
 
-            $EvalParams.Regex = [regex] 'Number\ of\ routes'
+            # route table line securestack non-router context
+            $EvalParams.Regex = [regex] "^(?<destination>$IpRx\/\d+)\s+(?<nexthop>$IpRx)\s+(?<type>\w+)"
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
-                break
+                $Type = ($Eval.Groups['type'].Value).Trim()
+                $Destination = ($Eval.Groups['destination'].Value).Trim()
+                $NextHop = ($Eval.Groups['nexthop'].Value).Trim()
+                Write-Verbose "$VerbosePrefix $i`: route table: securestack non-router context: adding route $Destination -> $NextHop ($Type)"
+
+                $RouteTypeMap = @{
+                    'UG' = 'static'
+                    'UC' = 'connected'
+                }
+
+                $NewEntry = [IpRoute]::new()
+                $NewEntry.Type = $RouteTypeMap.$Type
+                $NewEntry.Destination = $Destination
+                $NewEntry.NextHop = $NextHop
+
+                $ReturnArray += $NewEntry
+                continue
             }
         }
     }
