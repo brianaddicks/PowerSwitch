@@ -5,7 +5,7 @@ online version:
 schema: 2.0.0
 ---
 
-# Get-EosInventory
+# Get-ExosPortStatus
 
 ## SYNOPSIS
 {{Fill in the Synopsis}}
@@ -14,12 +14,12 @@ schema: 2.0.0
 
 ### path (Default)
 ```
-Get-EosInventory [-ConfigPath] <String> [<CommonParameters>]
+Get-ExosPortStatus [-ConfigPath] <String> [<CommonParameters>]
 ```
 
 ### array
 ```
-Get-EosInventory [-ConfigArray] <Array> [<CommonParameters>]
+Get-ExosPortStatus [-ConfigArray] <Array> [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -67,7 +67,8 @@ Accept wildcard characters: False
 ```
 
 ### CommonParameters
-This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
+This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable.
+For more information, see about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS
 
