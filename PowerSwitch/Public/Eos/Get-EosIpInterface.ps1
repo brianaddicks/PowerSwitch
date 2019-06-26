@@ -65,8 +65,8 @@ function Get-EosIpInterface {
             # interface <name>
             if ($Name) {
                 $EvalParams.Regex = [regex] "^\ *interface\ ($Name)"
+                Write-Verbose "$VerbosePrefix $i`: router: looking for specific interface: $Name"
             } else {
-                $entry
                 $EvalParams.Regex = [regex] "^\ *interface\ (.+)"
             }
             $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
