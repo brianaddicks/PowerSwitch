@@ -126,6 +126,65 @@ function Get-EosIpInterface {
                     continue :fileloop
                 }
 
+                #region vrrp
+                ######################################################
+                # no ip redirects
+
+                # create
+                $EvalParams.Regex = [regex] "^\ *vrrp\ create\ (?<id>\d+)\ (?<version>v.+)"
+                $Eval = Get-RegexMatch @EvalParams
+                if ($Eval) {
+                    $NewVrrp = [VrrpInstance]::new()
+                    $NewVrrp.Id = $Eval.Groups['id'].Value
+                    $NewVrrp.Version = $Eval.Groups['version'].Value
+
+                    $New.VrrpInstance += $NewVrrp
+                    continue :fileloop
+                }
+
+                # address
+                $EvalParams.Regex = [regex] "^\ *vrrp\ address\ (?<id>\d+)\ (?<address>$IpRx)"
+                $Eval = Get-RegexMatch @EvalParams
+                if ($Eval) {
+                    $VrrpLookup = $New.VrrpInstance | Where-Object { $_.Id -eq $Eval.Groups['id'].Value }
+                    $VrrpLookup.Address += $Eval.Groups['address'].Value
+
+                    continue :fileloop
+                }
+
+                # accept-mode
+                $EvalParams.Regex = [regex] "^\ *vrrp\ accept-mode\ (?<id>\d+)"
+                $Eval = Get-RegexMatch @EvalParams
+                if ($Eval) {
+                    $VrrpLookup = $New.VrrpInstance | Where-Object { $_.Id -eq $Eval.Groups['id'].Value }
+                    $VrrpLookup.AcceptMode = $true
+
+                    continue :fileloop
+                }
+
+                # fabric-route-mode
+                $EvalParams.Regex = [regex] "^\ *vrrp\ fabric-route-mode\ (?<id>\d+)"
+                $Eval = Get-RegexMatch @EvalParams
+                if ($Eval) {
+                    $VrrpLookup = $New.VrrpInstance | Where-Object { $_.Id -eq $Eval.Groups['id'].Value }
+                    $VrrpLookup.FabricRouteMode = $true
+
+                    continue :fileloop
+                }
+
+                # enable
+                $EvalParams.Regex = [regex] "^\ *vrrp\ enable\ (?<id>\d+)"
+                $Eval = Get-RegexMatch @EvalParams
+                if ($Eval) {
+                    $VrrpLookup = $New.VrrpInstance | Where-Object { $_.Id -eq $Eval.Groups['id'].Value }
+                    $VrrpLookup.Enable = $true
+
+                    continue :fileloop
+                }
+
+                ######################################################
+                #endregion vrrp
+
                 # exit interface
                 $Regex = [regex] '^\ *exit'
                 $Match = Get-RegexMatch $Regex $entry

@@ -16,6 +16,9 @@ Class IpInterface {
     [bool]$IpForwardingEnabled
     [bool]$IpMulticastForwardingEnabled
 
+    # Vrrp
+    [psobject[]]$VrrpInstance
+
     ##################################### Initiators #####################################
     # Initiator
     IpInterface([string]$Name) {
