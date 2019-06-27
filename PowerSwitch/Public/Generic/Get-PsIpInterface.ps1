@@ -9,6 +9,7 @@ function Get-PsIpInterface {
         [array]$ConfigArray,
 
         [Parameter(Mandatory = $True, Position = 1)]
+        [ValidateSet('ExtremeEos', 'Cisco', 'HpComware')]
         [string]$PsSwitchType
     )
 
@@ -31,6 +32,9 @@ function Get-PsIpInterface {
         }
         'HpComware' {
             $ReturnObject = Get-HpCwIpInterface -ConfigArray $LoopArray
+        }
+        'ExtremeEos' {
+            $ReturnObject = Get-EosIpInterface -ConfigArray $LoopArray
         }
         default {
             Throw "$VerbosePrefix SwitchType not handled '$PsSwitchType'"
