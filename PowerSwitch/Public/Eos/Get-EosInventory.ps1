@@ -60,7 +60,7 @@ function Get-EosInventory {
         ###########################################################################################
         # Check for the Section
 
-        $Regex = [regex] 'show\ version$'
+        $Regex = [regex] 'show\ ver(sion)?$'
         $Match = Get-RegexMatch $Regex $entry
         if ($Match) {
             Write-Verbose "$VerbosePrefix $i`: 'show version' found"
