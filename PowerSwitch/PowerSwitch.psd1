@@ -109,7 +109,7 @@
             # IconUri = ''
 
             # ReleaseNotes of this module
-            # ReleaseNotes = ''
+            ReleaseNotes = 'Added ExtremeEos support to Get-PsIpInterface'
 
         } # End of PSData hashtable
 
