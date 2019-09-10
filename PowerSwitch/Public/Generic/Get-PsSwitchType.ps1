@@ -37,7 +37,7 @@ function Get-PsSwitchType {
             $StopWatch.Start()
         }
 
-        if ($entry -eq "") {
+        if (!([String]::IsNullOrEmpty($entry))) {
             continue
         }
 

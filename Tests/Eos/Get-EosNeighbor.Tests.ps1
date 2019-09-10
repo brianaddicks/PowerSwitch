@@ -1,4 +1,4 @@
-if (-not $ENV:BHProjectPath) {
+<# if (-not $ENV:BHProjectPath) {
     Set-BuildEnvironment -Path $PSScriptRoot\..
 }
 Remove-Module $ENV:BHProjectName -ErrorAction SilentlyContinue
@@ -233,4 +233,4 @@ Switch0(su)->
             }
         }
     }
-}
+} #>
