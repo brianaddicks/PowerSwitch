@@ -136,8 +136,11 @@ function Get-EosHostConfig {
     #############################################
     # Choose loop.0.1 if no management interface has been detected
     if (!($ReturnObject.IpAddress)) {
-        $ReturnObject.IpAddress = (Get-EosIpInterface -ConfigArray $LoopArray -Name 'loopback 1').IpAddress[0]
-        $ReturnObject.MgmtInterface = 'loop.0.1'
+        $LoopbackIpAddress = Get-EosIpInterface -ConfigArray $LoopArray -Name 'loopback 1'
+        if ($LoopbackIpAddress) {
+            $ReturnObject.IpAddress = $LoopbackIpAddress.IpAddress[0]
+            $ReturnObject.MgmtInterface = 'loop.0.1'
+        }
     }
 
     return $ReturnObject
