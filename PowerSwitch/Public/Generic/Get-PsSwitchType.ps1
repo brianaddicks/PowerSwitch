@@ -27,6 +27,7 @@ function Get-PsSwitchType {
 
     :fileloop foreach ($entry in $LoopArray) {
         $i++
+        Write-Verbose "$i $entry"
 
         # Write progress bar, we're only updating every 1000ms, if we do it every line it takes forever
 
@@ -37,7 +38,7 @@ function Get-PsSwitchType {
             $StopWatch.Start()
         }
 
-        if (!([String]::IsNullOrEmpty($entry))) {
+        if ($entry -eq "") {
             continue
         }
 
