@@ -9,7 +9,7 @@ function Get-PsVlanConfig {
         [array]$ConfigArray,
 
         [Parameter(Mandatory = $True, Position = 1)]
-        [ValidateSet('ExtremeEos', 'HpComware', 'HpAruba', 'Cisco')]
+        [ValidateSet('ExtremeEos', 'HpComware', 'HpAruba', 'Cisco', 'ExtremeExos')]
         [string]$PsSwitchType
     )
 
@@ -29,6 +29,9 @@ function Get-PsVlanConfig {
     switch ($PsSwitchType) {
         'ExtremeEos' {
             $ReturnObject = Get-EosVlanConfig -ConfigArray $LoopArray
+        }
+        'ExtremeExos' {
+            $ReturnObject = Get-ExosVlanConfig -ConfigArray $LoopArray
         }
         'HpComware' {
             $ReturnObject = Get-HpCwVlanConfig -ConfigArray $LoopArray

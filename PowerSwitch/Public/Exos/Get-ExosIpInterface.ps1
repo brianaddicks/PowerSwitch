@@ -27,7 +27,7 @@ function Get-ExosIpInterface {
     $ReturnArray1 = @()
     $ReturnArray1 += [IpInterface]::new(1)
     $ReturnArray1[0].Name = "Default"
-    $VlanConfig= Get-ExosVlanConfig -ConfigArray $LoopArray
+    $VlanConfig = Get-ExosVlanConfig -ConfigArray $LoopArray
     $TotalLines = $LoopArray.Count
     $i = 0
     $StopWatch = [System.Diagnostics.Stopwatch]::StartNew() # used by Write-Progress so it doesn't slow the whole function down
@@ -71,7 +71,30 @@ function Get-ExosIpInterface {
         }
 
         if ($KeepGoing) {
-            # configure vlan "(vlan name)" ipaddress "(ipaddress) (mask)" 
+            # create vlan "(vlanname)" vr (vr)"
+            $EvalParams.Regex = [regex] '^create\ vlan\ "(?<vlanname>.+?)"(\ vr\ (?<vr>.+))?'
+            $Eval = Get-RegexMatch @EvalParams
+            if ($Eval) {
+                $VlanName = $Eval.Groups['vlanname'].Value
+                $VrName = $Eval.Groups['vr'].Value
+                $New = [IpInterface]::new($VlanName)
+                $ReturnArray += $New
+                $New.VirtualRouter = $VrName
+                Write-Verbose "$VerbosePrefix $i`: vlan: name '$VlanName' vr '$VrName'"
+
+                <# $New = [IpInterface]::new($VlanName)
+
+                $IpInterfaceLookup = $ReturnArray | Where-Object { $_.Name -eq $VlanName }
+                $IpInterfaceLookup.IpAddress = "$IP/$Mask"
+                $IpInterfaceLookup.Enabled = $True
+                $VlanConfigLookup = $VlanConfig | Where-Object { $_.Name -eq $VlanName }
+                $IpInterfaceLookup.VlanId = $VlanConfigLookup.Id
+                $IpInterfaceLookup.Description = $VlanConfigLookup.Description #>
+                continue
+            }
+
+
+            # configure vlan "(vlan name)" ipaddress "(ipaddress) (mask)"
             $EvalParams.Regex = [regex] "^configure\ vlan\ (?<vlanname>.+?)\ ipaddress (?<ip>$IpRx)\ (?<mask>$IpRx)"
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
@@ -80,16 +103,19 @@ function Get-ExosIpInterface {
                 $MaskIPV4Math = $Eval.Groups['mask'].Value
                 $Mask = ConvertTo-MaskLength $MaskIPV4Math
                 Write-Verbose "$VerbosePrefix $i`: vlan: name '$VlanName' ip '$IP/$Mask'"
-                $New = [IpInterface]::new($VlanName)
-                $ReturnArray += $New
+                #$New = [IpInterface]::new($VlanName)
+                #$ReturnArray += $New
                 $IpInterfaceLookup = $ReturnArray | Where-Object { $_.Name -eq $VlanName }
-                $IpInterfaceLookup.IpAddress = "$IP/$Mask"
-                $IpInterfaceLookup.Enabled = $True
-                $VlanConfigLookup = $VlanConfig | Where-Object { $_.Name -eq $VlanName }
-                $IpInterfaceLookup.VlanId = $VlanConfigLookup.Id
-                $IpInterfaceLookup.Description = $VlanConfigLookup.Description
+                if ($IpInterfaceLookup) {
+                    $IpInterfaceLookup.IpAddress = "$IP/$Mask"
+                    $IpInterfaceLookup.Enabled = $True
+                    $VlanConfigLookup = $VlanConfig | Where-Object { $_.Name -eq $VlanName }
+                    $IpInterfaceLookup.VlanId = $VlanConfigLookup.Id
+                    $IpInterfaceLookup.Description = $VlanConfigLookup.Description
+                }
                 continue
             }
+
             $EvalParams.Regex = [regex] "^(?<type>enable|disable)\ (?<ipforward>ipforwarding|ipmcforwarding)\ vlan\ (?<vlanname>.+)"
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
@@ -99,21 +125,21 @@ function Get-ExosIpInterface {
                 Write-Verbose "$VerbosePrefix $i`: vlan: name '$VlanName' forwarding '$Ipforward' '$Type'"
                 $IpInterfaceLookup = $ReturnArray | Where-Object { $_.Name -eq $VlanName }
                 switch ($Type) {
-                    'enable' { 
+                    'enable' {
                         switch ($Ipforward) {
-                            'ipforwarding' { 
+                            'ipforwarding' {
                                 $IpInterfaceLookup.IpForwardingEnabled = $True
-                             }
+                            }
                             'ipmcforwarding' {
                                 $IpInterfaceLookup.IpMulticastForwardingEnabled = $True
                             }
                         }
-                     }
+                    }
                     'disable' {
                         switch ($Ipforward) {
-                            'ipforwarding' { 
+                            'ipforwarding' {
                                 $IpInterfaceLookup.IpForwardingEnabled = $false
-                             }
+                            }
                             'ipmcforwarding' {
                                 $IpInterfaceLookup.IpMulticastForwardingEnabled = $false
                             }
@@ -125,48 +151,50 @@ function Get-ExosIpInterface {
 
             $EvalParams1.Regex = [regex] "^configure\ bootprelay\ add\ (?<ip>$IpRx)\ vr\ (?<vr>.+)"
             $Eval1 = Get-RegexMatch @EvalParams1
-            if ($Eval1){
+            if ($Eval1) {
                 $IP = $Eval1.Groups['ip'].Value
                 Write-Verbose "$VerbosePrefix $i`: Adding default bootprealy ip to seprate table '$IP'"
                 $IpInterfaceLookup = $ReturnArray1 | Where-Object { $_.Name -eq "Default" }
                 $IpInterfaceLookup.IpAddress += "$IP"
                 continue
             }
-             # configure vlan "(vlan name)" ipaddress "(ipaddress) (mask)" 
-             $EvalParams1.Regex = [regex] "^enable\ bootprelay\ ipv4\ vlan\ (?<vlanname>.+)"
-             $Eval1 = Get-RegexMatch @EvalParams1
-             if ($Eval1) {
-                 $VlanName = $Eval1.Groups['vlanname'].Value
-                 Write-Verbose "$VerbosePrefix $i`: bootprelay on enabled on vlan: name '$VlanName'"
-                 $IpInterfaceLookup = $ReturnArray | Where-Object { $_.Name -eq $VlanName }
-                 $IpInterfaceLookup.IpHelperEnabled = $True
-             }
+            # configure vlan "(vlan name)" ipaddress "(ipaddress) (mask)"
+            $EvalParams1.Regex = [regex] "^enable\ bootprelay\ ipv4\ vlan\ (?<vlanname>.+)"
+            $Eval1 = Get-RegexMatch @EvalParams1
+            if ($Eval1) {
+                $VlanName = $Eval1.Groups['vlanname'].Value
+                Write-Verbose "$VerbosePrefix $i`: bootprelay on enabled on vlan: name '$VlanName'"
+                $IpInterfaceLookup = $ReturnArray | Where-Object { $_.Name -eq $VlanName }
+                if ($IpInterfaceLookup) {
+                    $IpInterfaceLookup.IpHelperEnabled = $True
+                }
+            }
 
-             # configure bootprelay vlan (vlan name) add (ipaddress)
-             $EvalParams1.Regex = [regex] "^configure\ bootprelay\ vlan\ (?<vlanname>.+?)\ add\ (?<ip>$IpRx)"
-             $Eval1 = Get-RegexMatch @EvalParams1
-             if ($Eval1){
+            # configure bootprelay vlan (vlan name) add (ipaddress)
+            $EvalParams1.Regex = [regex] "^configure\ bootprelay\ vlan\ (?<vlanname>.+?)\ add\ (?<ip>$IpRx)"
+            $Eval1 = Get-RegexMatch @EvalParams1
+            if ($Eval1) {
                 $VlanName = $Eval1.Groups['vlanname'].Value
                 $IP = $Eval1.Groups['ip'].Value
                 Write-Verbose "$VerbosePrefix $i`: bootprelay on enabled on vlan: name '$VlanName' Ipaddress '$IP'"
                 $IpInterfaceLookup = $ReturnArray | Where-Object { $_.Name -eq $VlanName }
-                 $IpInterfaceLookup.IpHelper += $IP
+                $IpInterfaceLookup.IpHelper += $IP
                 continue
-             }
-             # next config section
-             $EvalParams.Regex = [regex] "^(#)\ "
-             $Eval = Get-RegexMatch @EvalParams
-             $Eval1 = Get-RegexMatch @EvalParams1
-             if ($Eval -and $Eval1) {
-                 break fileloop
-             }
+            }
+            # next config section
+            $EvalParams.Regex = [regex] "^(#)\ "
+            $Eval = Get-RegexMatch @EvalParams
+            $Eval1 = Get-RegexMatch @EvalParams1
+            if ($Eval -and $Eval1) {
+                break fileloop
+            }
         }
     }
     $DefaultIpInterfaceLookup = $ReturnArray1 | Where-Object { $_.Name -eq "Default" }
-        $MissingIpHelpers = $ReturnArray| Where-Object { $_.IpHelperEnabled -eq $True -and $_.IpHelper -eq $null}
-        foreach ($ip in $MissingIpHelpers) {
-            $ip.IpHelper = $DefaultIpInterfaceLookup.IpAddress
-        }
+    $MissingIpHelpers = $ReturnArray| Where-Object { $_.IpHelperEnabled -eq $True -and $_.IpHelper -eq $null}
+    foreach ($ip in $MissingIpHelpers) {
+        $ip.IpHelper = $DefaultIpInterfaceLookup.IpAddress
+    }
 
-    return $ReturnArray
+    return $ReturnArray | Where-Object { $_.IpAddress }
 }

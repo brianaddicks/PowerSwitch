@@ -1,5 +1,6 @@
 Class IpInterface {
     [string]$Name
+    [string]$VirtualRouter
     [string]$Description
     [string[]]$IpAddress
     [string]$VlanId

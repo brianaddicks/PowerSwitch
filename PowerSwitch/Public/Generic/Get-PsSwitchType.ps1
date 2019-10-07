@@ -115,6 +115,20 @@ function Get-PsSwitchType {
         ###########################################################################################
         #endregion Enterasys
 
+        #region Exos
+        ###########################################################################################
+
+        $EvalParams = @{}
+        $EvalParams.StringToEval = $entry
+        $EvalParams.Regex = [regex] "#\ Module\ devmgr\ configuration"
+        $Eval = Get-RegexMatch @EvalParams
+        if ($Eval) {
+            $PsSwitchType = "ExtremeExos"
+            break fileloop
+        }
+
+        ###########################################################################################
+        #endregion Exos
     }
 
     if (!($PsSwitchType)) {

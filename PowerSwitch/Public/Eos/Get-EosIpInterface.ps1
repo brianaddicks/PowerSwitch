@@ -50,6 +50,17 @@ function Get-EosIpInterface {
         ###########################################################################################
         # Check for the Section
 
+        # vrf
+        # router <vrf-name>
+        $Regex = [regex] '^router\ (?<vrf>.+)$'
+        $Match = Get-RegexMatch $Regex $entry -ReturnGroupNumber 1
+        if ($Match) {
+            Write-Verbose "$VerbosePrefix $i`: vrf: $Match"
+            $KeepGoing = $true
+            $ThisVrf = $Match
+            continue
+        }
+
         $Regex = [regex] '^configure(\ terminal)?$'
         $Match = Get-RegexMatch $Regex $entry
         if ($Match) {
@@ -73,6 +84,9 @@ function Get-EosIpInterface {
             if ($Eval) {
                 $InterfaceName = $Eval -replace ' ', '.0.'
                 $New = [IpInterface]::new($InterfaceName)
+                if ($ThisVrf) {
+                    $New.VirtualRouter = $ThisVrf
+                }
 
                 $EvalParams.Regex = [regex] "vlan(\.0\.|\ )(\d+)"
                 $CheckVlan = Get-RegexMatch @EvalParams -ReturnGroupNumber 2
@@ -115,6 +129,7 @@ function Get-EosIpInterface {
                 $Eval = Get-RegexMatch @EvalParams
                 if ($Eval) {
                     $New.Enabled = $true
+                    $New.IpForwardingEnabled = $true
                     continue :fileloop
                 }
 
@@ -201,7 +216,11 @@ function Get-EosIpInterface {
             $Regex = [regex] '^#'
             $Match = Get-RegexMatch $Regex $entry
             if ($Match) {
-                break
+                if ($ThisVrf) {
+                    Remove-Variable -Name 'ThisVrf'
+                } else {
+                    break
+                }
             }
         }
     }

@@ -9,7 +9,10 @@ function Get-PsHostConfig {
         [array]$ConfigArray,
 
         [Parameter(Mandatory = $True, Position = 1)]
-        [string]$PsSwitchType
+        [string]$PsSwitchType,
+
+        [Parameter(Mandatory = $False)]
+        [string]$ExosManagementIpAddress
     )
 
     # It's nice to be able to see what cmdlet is throwing output isn't it?
@@ -34,6 +37,9 @@ function Get-PsHostConfig {
         }
         'ExtremeEos' {
             $ReturnObject = Get-EosHostConfig -ConfigArray $LoopArray
+        }
+        'ExtremeExos' {
+            $ReturnObject = Get-ExosHostConfig -ConfigArray $LoopArray -ManagementIpAddress $ExosManagementIpAddress
         }
         default {
             Throw "$VerbosePrefix SwitchType not handled '$PsSwitchType'"
