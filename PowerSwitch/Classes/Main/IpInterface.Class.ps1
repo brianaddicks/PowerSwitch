@@ -12,6 +12,15 @@ Class IpInterface {
 
     # multicast
     [string]$PimMode
+    [bool]$PimPassive
+
+    # ospf
+    [string]$OspfArea
+    [bool]$OspfPassive
+
+    # access list
+    [string]$AccessList
+    [string]$AccessListDirection
 
     #EXOS
     [bool]$IpForwardingEnabled

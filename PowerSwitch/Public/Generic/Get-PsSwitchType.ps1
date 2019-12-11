@@ -47,7 +47,7 @@ function Get-PsSwitchType {
         ###########################################################################################
         # HP Comware
 
-        $EvalParams = @{}
+        $EvalParams = @{ }
         $EvalParams.StringToEval = $entry
         $EvalParams.Regex = [regex] "^\ +sysname\ (.+)"
         $Eval = Get-RegexMatch @EvalParams -ReturnGroupNum 1
@@ -69,9 +69,9 @@ function Get-PsSwitchType {
         ###########################################################################################
         # HP Aruba
 
-        $EvalParams = @{}
+        $EvalParams = @{ }
         $EvalParams.StringToEval = $entry
-        $EvalParams.Regex = [regex] '^;\ hpStack_WC\ Configuration\ Editor;'
+        $EvalParams.Regex = [regex] '^;\ .+\ Configuration\ Editor;'
         $Eval = Get-RegexMatch @EvalParams
         if ($Eval) {
             $PsSwitchType = "HpAruba"
@@ -81,29 +81,19 @@ function Get-PsSwitchType {
         ###########################################################################################
         # Cisco
 
-        $EvalParams = @{}
+        $EvalParams = @{ }
         $EvalParams.StringToEval = $entry
-        $EvalParams.Regex = [regex] "^hostname\ (.+)"
-        $Eval = Get-RegexMatch @EvalParams -ReturnGroupNum 1
+        $EvalParams.Regex = [regex] "^Current\ configuration\ :\ \d+\ bytes"
+        $Eval = Get-RegexMatch @EvalParams
         if ($Eval) {
-            $CiscoSysName = $Eval
-            Write-Verbose "$VerbosePrefix CiscoSysName: $CiscoSysName"
-            continue
-        }
-
-        if ($CiscoSysName) {
-            $EvalParams.Regex = [regex] "$CiscoSysName(>|#)"
-            $Eval = Get-RegexMatch @EvalParams
-            if ($Eval) {
-                $PsSwitchType = "Cisco"
-                break fileloop
-            }
+            $PsSwitchType = "Cisco"
+            break fileloop
         }
 
         #region Enterasys
         ###########################################################################################
 
-        $EvalParams = @{}
+        $EvalParams = @{ }
         $EvalParams.StringToEval = $entry
         $EvalParams.Regex = [regex] "^#(\ Chassis)?\ Firmware\ Revision:\ +\d+"
         $Eval = Get-RegexMatch @EvalParams
@@ -118,7 +108,7 @@ function Get-PsSwitchType {
         #region Exos
         ###########################################################################################
 
-        $EvalParams = @{}
+        $EvalParams = @{ }
         $EvalParams.StringToEval = $entry
         $EvalParams.Regex = [regex] "#\ Module\ devmgr\ configuration"
         $Eval = Get-RegexMatch @EvalParams
