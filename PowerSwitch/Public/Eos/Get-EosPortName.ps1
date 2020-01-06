@@ -65,18 +65,18 @@ function Get-EosPortName {
         }
 
         if ($KeepGoing) {
-            $EvalParams = @{}
+            $EvalParams = @{ }
             $EvalParams.StringToEval = $entry
             $EvalParams.ReturnGroupNumber = 1
 
-            # vlan create
+            <#             # vlan create
             $EvalParams.Regex = [regex] "^set\ vlan\ create\ (.+)"
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
                 Write-Verbose "$VerbosePrefix $i`: vlan: create"
                 $ResolvedVlans = Resolve-VlanString -VlanString $Eval -SwitchType 'Eos'
                 foreach ($r in $ResolvedVlans) {
-                    $ReturnArray += [Vlan]::new([int]$r)
+                    #$ReturnArray += [Vlan]::new([int]$r)
                 }
             }
 
@@ -94,17 +94,19 @@ function Get-EosPortName {
                 } else {
                     Throw "$VerbosePrefix $i`: vlan: $VlanId not found in ReturnArray"
                 }
-            }
+            } #>
 
             # clear vlan egress 1
-            $EvalParams.Regex = [regex] "clear\ vlan\ egress\ 1\ (?<ports>.+)"
+            $EvalParams.Regex = [regex] "clear\ vlan\ egress\ 1\ (.+)"
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
-                Write-Verbose "$VerbosePrefix $i`: vlan: clear egress 1"
+                <# Write-Verbose "$VerbosePrefix $i`: vlan: clear egress 1"
                 $ThesePorts = $Eval.Groups['ports'].Value
-                $ThesePorts = Resolve-PortString -PortString $ThesePorts -SwitchType 'Eos'
-                Write-Verbose "$VerbosePrefix $i`: vlan: $($LookupPorts.Count) ports to be cleared"
-                $LookupPorts = $Ports | Where-Object { $ThesePorts -contains $_.Name }
+                Write-Verbose "$VerbosePrefix $i`: vlan: $ThesePorts"
+                $ThesePorts = Resolve-PortString -PortString $Eval -SwitchType 'Eos'
+                Write-Verbose "$VerbosePrefix $i`: vlan: $($ThesePorts.Count) ports to be cleared" #>
+                $ReturnArray += Resolve-PortString -PortString $Eval -SwitchType 'Eos'
+                <# $LookupPorts = $Ports | Where-Object { $ThesePorts -contains $_.Name }
                 Write-Verbose "$VerbosePrefix $i`: vlan: $($LookupPorts.Count) ports"
                 foreach ($p in $LookupPorts) {
                     if ($p.UntaggedVlan -eq 1) {
@@ -113,18 +115,20 @@ function Get-EosPortName {
                     if ($p.TaggedVlan -contains 1) {
                         $p.TaggedVlan = $P.TaggedVlan | Where-Object { $_ -ne 1 }
                     }
-                }
+                } #>
             }
 
             # vlan egress
-            $EvalParams.Regex = [regex] "set\ vlan\ egress\ (?<id>\d+)\ (?<ports>.+?)\ (?<tagging>.+)"
+            $EvalParams.Regex = [regex] "set\ vlan\ egress\ \d+\ (?<ports>.+?)\ .+"
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
-                $VlanId = $Eval.Groups['id'].Value
+                <# $VlanId = $Eval.Groups['id'].Value
                 $ThesePorts = $Eval.Groups['ports'].Value
-                $Tagging = $Eval.Groups['tagging'].Value
+                $Tagging = $Eval.Groups['tagging'].Value #>
 
-                Write-Verbose "$VerbosePrefix $i`: vlan: $VlanId`: ports $ThesePorts, $Tagging"
+                $ReturnArray += Resolve-PortString -PortString $Eval -SwitchType 'Eos'
+
+                <# Write-Verbose "$VerbosePrefix $i`: vlan: $VlanId`: ports $ThesePorts, $Tagging"
                 $Lookup = $ReturnArray | Where-Object { $_.Id -eq $VlanId }
                 if ($Lookup) {
                     switch ($Tagging) {
@@ -137,7 +141,7 @@ function Get-EosPortName {
                     }
                 } else {
                     Throw "$VerbosePrefix $i`: vlan: $VlanId not found in ReturnArray"
-                }
+                } #>
             }
 
             $Regex = [regex] '^#'
@@ -151,20 +155,24 @@ function Get-EosPortName {
     $Inventory = Get-EosInventory -ConfigArray $LoopArray
 
     $rx = [regex] '(\w+)\.(\d+)\.(\d+)'
-    $Ports = $ReturnArray.UntaggedPorts + $ReturnArray.TaggedPorts
+    #$Ports = $ReturnArray.UntaggedPorts + $ReturnArray.TaggedPorts
     switch ($Inventory) {
         { $_ -match 'C5|B5' } {
             for ($i = 1; $i -le 6; $i++) {
-                $Ports += "lag.0.$i"
+                $ReturnArray += "lag.0.$i"
             }
         }
         { $_ -Match 'S4' } {
             for ($i = 1; $i -le 126; $i++) {
-                $Ports += "lag.0.$i"
+                $ReturnArray += "lag.0.$i"
             }
         }
     }
-    $Ports = $Ports | Select-Object -Unique | Sort-Object -Property @{e = {$rx.match($_).groups[2].value}}, @{e = {$rx.match($_).groups[1].value}}, @{e = {"{0:000}" -f [int]($rx.match($_).groups[3].value)}}
+    $ReturnArray = $ReturnArray | Select-Object -Unique | Sort-Object -Property @{e = { $rx.match($_).groups[2].value } }, @{e = { $rx.match($_).groups[1].value } }, @{e = { "{0:000}" -f [int]($rx.match($_).groups[3].value) } }
+    $Ports = @()
+    foreach ($p in $ReturnArray) {
+        $Ports += [Port]::new($p)
+    }
 
     return $Ports
 }

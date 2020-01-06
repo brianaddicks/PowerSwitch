@@ -9,7 +9,7 @@ function Get-PsRouteTable {
         [array]$ConfigArray,
 
         [Parameter(Mandatory = $True, Position = 1)]
-        [ValidateSet('ExtremeEos')]
+        [ValidateSet('ExtremeEos', 'Cisco')]
         [string]$PsSwitchType
     )
 
@@ -29,6 +29,9 @@ function Get-PsRouteTable {
     switch ($PsSwitchType) {
         'ExtremeEos' {
             $ReturnObject = Get-EosRouteTable -ConfigArray $LoopArray
+        }
+        'Cisco' {
+            $ReturnObject = Get-CiscoRouteTable -ConfigArray $LoopArray
         }
         default {
             Throw "$VerbosePrefix SwitchType not handled '$PsSwitchType'"

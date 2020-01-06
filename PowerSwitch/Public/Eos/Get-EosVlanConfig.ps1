@@ -65,7 +65,7 @@ function Get-EosVlanConfig {
         }
 
         if ($KeepGoing) {
-            $EvalParams = @{}
+            $EvalParams = @{ }
             $EvalParams.StringToEval = $entry
             $EvalParams.ReturnGroupNumber = 1
 
@@ -129,10 +129,10 @@ function Get-EosVlanConfig {
                 if ($Lookup) {
                     switch ($Tagging) {
                         'tagged' {
-                            $Lookup.TaggedPorts = Resolve-PortString -PortString $ThesePorts -SwitchType 'Eos'
+                            $Lookup.TaggedPorts += Resolve-PortString -PortString $ThesePorts -SwitchType 'Eos'
                         }
                         'untagged' {
-                            $Lookup.UntaggedPorts = Resolve-PortString -PortString $ThesePorts -SwitchType 'Eos'
+                            $Lookup.UntaggedPorts += Resolve-PortString -PortString $ThesePorts -SwitchType 'Eos'
                         }
                     }
                 } else {
