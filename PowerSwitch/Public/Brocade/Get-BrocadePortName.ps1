@@ -80,6 +80,7 @@ function Get-BrocadePortName {
             # module 1 fi-sx6-48-port-gig-copper-poe-module
             # module 1 fi-sx6-24-port-1gig-fiber-module
             # module 1 fi-sx-0-port-management-module
+            # module 1fi-sx6-xl-0-port-management-module
 
             # stack module
             # stack unit 1
