@@ -14,7 +14,8 @@ function Get-BrocadeInventory {
 
     # Check for path and import
     if ($ConfigPath) {
-        if (Test-Path $ConfigPath) {
+        if (Test-Path $ConfigPath -PathType Leaf) {
+            Write-Verbose "$VerbosePrefix ConfigPath is file"
             $LoopArray = Get-Content $ConfigPath
         }
     } else {
@@ -31,10 +32,6 @@ function Get-BrocadeInventory {
     $ReturnObject.OneGigFiberCount = 0
     $ReturnObject.TenGigFiberCount = 0
     $ReturnObject.FortyGigFiberCount = 0
-
-    if ($Ports) {
-        $ReturnArray[0].UntaggedPorts = ($Ports | Where-Object { $_.type -ne "other" }).Name
-    }
 
     $IpRx = [regex] "(\d+)\.(\d+)\.(\d+)\.(\d+)"
 
@@ -87,7 +84,7 @@ function Get-BrocadeInventory {
             # module 1 fi-sx6-24-port-1gig-fiber-module
             # module 1 fi-sx-0-port-management-module
             # module 1 fi-sx6-xl-0-port-management-module
-            $EvalParams.Regex = [regex] '^\s*module\ (?<num>\d+)\ (?<model>(?<bladetype>fi-sx\d?(-xl)?)-(?<count>\d+)-port(-(?<speed>\d+[a-z]+))?-(?<porttype>.+)(-(?<poe>poe|management))?-module)'
+            $EvalParams.Regex = [regex] '^\s*module\ (?<num>\d+)\ (?<model>(?<bladetype>fi-sx\d?(-xl)?)-(?<count>\d+)-port(-(?<speed>\d*?[a-z]+))?-(?<porttype>.+)(-(?<poe>poe|management))?-module)'
         }
         $Eval = Get-RegexMatch @EvalParams
         if ($Eval) {
@@ -130,11 +127,15 @@ function Get-BrocadeInventory {
                 $PortType = 'fiber'
             }
 
+            if (('' -eq $PortType) -and ($PortSpeed -eq '1gig')) {
+                $PortType = 'copper'
+            }
+
 
             switch -Regex ($PortType) {
-                '^(copper-poe|p)$' {
-                    switch ($PortSpeed) {
-                        '1gig' {
+                '^(copper-poe|p|copper)$' {
+                    switch -Regex ($PortSpeed) {
+                        '^(1gig|gig)$' {
                             Write-Verbose "$VerbosePrefix Current OneGigCopperCount: $($ReturnObject.OneGigCopperPortCount); Current CopperPortTotal: $($ReturnObject.CopperPortTotal)"
                             $ReturnObject.OneGigCopperPortCount += $PortCount
                             $ReturnObject.CopperPortTotal += $PortCount
@@ -191,5 +192,5 @@ function Get-BrocadeInventory {
         }
     }
 
-    return $ReturnObject
+    $ReturnObject
 }
