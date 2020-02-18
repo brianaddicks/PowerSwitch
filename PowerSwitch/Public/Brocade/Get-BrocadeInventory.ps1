@@ -98,7 +98,7 @@ function Get-BrocadeInventory {
                 $NewBlade.Number = $Eval.Groups['num'].Value
                 $ReturnObject.ChassisMember += $NewBlade
             }
-            $NewBlade.Model = @()
+            #$NewBlade.Model = @()
 
             Write-Verbose "$VerbosePrefix $i`: module: config started"
             #$BladeNumber = $Eval.Groups['num'].Value
@@ -180,7 +180,7 @@ function Get-BrocadeInventory {
                 }
             }
 
-            $NewBlade.Model += $Eval.Groups['model'].Value
+            $NewBlade.Model = $Eval.Groups['model'].Value
             continue
         }
 
