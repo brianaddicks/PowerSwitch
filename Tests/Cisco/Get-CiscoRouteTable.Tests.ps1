@@ -16,12 +16,12 @@ InModuleScope $ENV:BHProjectName {
     }
 
     $SampleRouteTable = @'
-D EX    138.33.0.0/16 [170/28416] via 10.172.1.199, 5w2d, Vlan321
-S       10.7.5.0/24 [1/0] via 10.7.0.5
-L       10.7.0.6/32 is directly connected, Vlan700
-S*   0.0.0.0/0 [1/0] via 10.172.1.1
+S*   0.0.0.0/0 [1/0] via 10.88.192.254
+L       10.88.64.0/24 is directly connected, Vlan88
+D EX    10.88.65.0/24 [170/28416] via 10.88.65.1, 5w2d, Vlan321
+S       192.0.10.0/24 [1/0] via 10.88.192.253
 '@
-    $SampleConfigSecureStackRouterContext = $SampleConfigSecureStackRouterContext.Split([Environment]::NewLine)
+    $SampleRouteTable = $SampleRouteTable.Split([Environment]::NewLine)
 
     Describe "Get-CiscoRouteTable" {
         Context "Explicit Command" {
@@ -36,24 +36,24 @@ S*   0.0.0.0/0 [1/0] via 10.172.1.1
                     $RouteTable[0].NextHop | Should -BeExactly '10.88.192.254'
                     $RouteTable[0].Type | Should -BeExactly 'static'
                 }
-                It "Should find Route 10.88.64.0/24 -> 10.88.64.1 (C)" {
+                It "Should find Route 10.88.64.0/24 -> 10.88.64.1 (L)" {
                     $RouteTable[1].Destination | Should -BeExactly '10.88.64.0/24'
-                    $RouteTable[1].NextHop | Should -BeExactly '10.88.64.1'
-                    $RouteTable[1].Type | Should -BeExactly 'connected'
+                    $RouteTable[1].NextHop | Should -BeNullOrEmpty
+                    $RouteTable[1].Type | Should -BeExactly 'local'
                 }
-                It "Should find Route 10.88.65.0/24 -> 10.88.65.1 (C)" {
+                It "Should find Route 10.88.65.0/24 -> 10.88.65.1 (D EX)" {
                     $RouteTable[2].Destination | Should -BeExactly '10.88.65.0/24'
                     $RouteTable[2].NextHop | Should -BeExactly '10.88.65.1'
-                    $RouteTable[2].Type | Should -BeExactly 'connected'
+                    $RouteTable[2].Type | Should -BeExactly 'EIGRP external'
                 }
-                It "Should find Route 127.0.0.1/32 -> null (S)" {
-                    $RouteTable[3].Destination | Should -BeExactly '127.0.0.1/32'
-                    $RouteTable[3].NextHop | Should -BeNullOrEmpty
-                    $RouteTable[3].Type | Should -BeExactly 'connected'
+                It "Should find Route 192.0.10.0/24 -> 10.88.192.253 (S)" {
+                    $RouteTable[3].Destination | Should -BeExactly '192.0.10.0/24'
+                    $RouteTable[3].NextHop | Should -BeExactly '10.88.192.253'
+                    $RouteTable[3].Type | Should -BeExactly 'static'
                 }
             }
-            Describe "Get-PsRouteTable -PsSwitchType ExtremeEos" {
-                $RouteTable = Get-PsRouteTable -ConfigArray $SampleConfig7100 -PsSwitchType ExtremeEos
+            Describe "Get-PsRouteTable -PsSwitchType Cisco" {
+                $RouteTable = Get-PsRouteTable -ConfigArray $SampleRouteTable -PsSwitchType Cisco
 
                 It "Should find correct number of Routes" {
                     $RouteTable.Count | Should -BeExactly 4
@@ -64,116 +64,20 @@ S*   0.0.0.0/0 [1/0] via 10.172.1.1
                         $RouteTable[0].NextHop | Should -BeExactly '10.88.192.254'
                         $RouteTable[0].Type | Should -BeExactly 'static'
                     }
-                    It "Should find Route 10.88.64.0/24 -> 10.88.64.1 (C)" {
+                    It "Should find Route 10.88.64.0/24 -> 10.88.64.1 (L)" {
                         $RouteTable[1].Destination | Should -BeExactly '10.88.64.0/24'
-                        $RouteTable[1].NextHop | Should -BeExactly '10.88.64.1'
-                        $RouteTable[1].Type | Should -BeExactly 'connected'
+                        $RouteTable[1].NextHop | Should -BeNullOrEmpty
+                        $RouteTable[1].Type | Should -BeExactly 'local'
                     }
-                    It "Should find Route 10.88.65.0/24 -> 10.88.65.1 (C)" {
+                    It "Should find Route 10.88.65.0/24 -> 10.88.65.1 (D EX)" {
                         $RouteTable[2].Destination | Should -BeExactly '10.88.65.0/24'
                         $RouteTable[2].NextHop | Should -BeExactly '10.88.65.1'
-                        $RouteTable[2].Type | Should -BeExactly 'connected'
+                        $RouteTable[2].Type | Should -BeExactly 'EIGRP external'
                     }
-                    It "Should find Route 127.0.0.1/32 -> null (S)" {
-                        $RouteTable[3].Destination | Should -BeExactly '127.0.0.1/32'
-                        $RouteTable[3].NextHop | Should -BeNullOrEmpty
-                        $RouteTable[3].Type | Should -BeExactly 'connected'
-                    }
-                }
-            }
-        }
-        Context "SecureStack Non-Router Context Config" {
-            $RouteTable = Get-EosRouteTable -ConfigArray $SampleConfigSecureStack
-
-            It "Should find correct number of Routes" {
-                $RouteTable.Count | Should -BeExactly 3
-            }
-            Context "Should report correct Route Table entries" {
-                It "Should find Route 0.0.0.0/0 -> 10.88.192.254 (S)" {
-                    $RouteTable[0].Destination | Should -BeExactly '0.0.0.0/0'
-                    $RouteTable[0].NextHop | Should -BeExactly '10.88.192.254'
-                    $RouteTable[0].Type | Should -BeExactly 'static'
-                }
-                It "Should find Route 10.88.64.0/24 -> 10.88.64.1 (C)" {
-                    $RouteTable[1].Destination | Should -BeExactly '10.88.64.0/24'
-                    $RouteTable[1].NextHop | Should -BeExactly '10.88.64.1'
-                    $RouteTable[1].Type | Should -BeExactly 'connected'
-                }
-                It "Should find Route 10.88.65.0/24 -> 10.88.65.1 (C)" {
-                    $RouteTable[2].Destination | Should -BeExactly '10.88.65.0/24'
-                    $RouteTable[2].NextHop | Should -BeExactly '10.88.65.1'
-                    $RouteTable[2].Type | Should -BeExactly 'connected'
-                }
-            }
-            Describe "Get-PsRouteTable -PsSwitchType ExtremeEos" {
-                $RouteTable = Get-PsRouteTable -ConfigArray $SampleConfigSecureStack -PsSwitchType ExtremeEos
-
-                It "Should find correct number of Routes" {
-                    $RouteTable.Count | Should -BeExactly 3
-                }
-                Context "Should report correct Route Table entries" {
-                    It "Should find Route 0.0.0.0/0 -> 10.88.192.254 (S)" {
-                        $RouteTable[0].Destination | Should -BeExactly '0.0.0.0/0'
-                        $RouteTable[0].NextHop | Should -BeExactly '10.88.192.254'
-                        $RouteTable[0].Type | Should -BeExactly 'static'
-                    }
-                    It "Should find Route 10.88.64.0/24 -> 10.88.64.1 (C)" {
-                        $RouteTable[1].Destination | Should -BeExactly '10.88.64.0/24'
-                        $RouteTable[1].NextHop | Should -BeExactly '10.88.64.1'
-                        $RouteTable[1].Type | Should -BeExactly 'connected'
-                    }
-                    It "Should find Route 10.88.65.0/24 -> 10.88.65.1 (C)" {
-                        $RouteTable[2].Destination | Should -BeExactly '10.88.65.0/24'
-                        $RouteTable[2].NextHop | Should -BeExactly '10.88.65.1'
-                        $RouteTable[2].Type | Should -BeExactly 'connected'
-                    }
-                }
-            }
-        }
-        Context "SecureStack Router Context Config" {
-            $RouteTable = Get-EosRouteTable -ConfigArray $SampleConfigSecureStackRouterContext
-
-            It "Should find correct number of Routes" {
-                $RouteTable.Count | Should -BeExactly 3
-            }
-            Context "Should report correct Route Table entries" {
-                It "Should find Route 0.0.0.0/0 -> 10.88.192.254 (S)" {
-                    $RouteTable[0].Destination | Should -BeExactly '0.0.0.0/0'
-                    $RouteTable[0].NextHop | Should -BeExactly '10.88.192.254'
-                    $RouteTable[0].Type | Should -BeExactly 'candidate default'
-                }
-                It "Should find Route 10.88.64.0/24 -> 10.88.64.1 (C)" {
-                    $RouteTable[1].Destination | Should -BeExactly '10.88.64.0/24'
-                    $RouteTable[1].NextHop | Should -BeExactly '10.88.64.1'
-                    $RouteTable[1].Type | Should -BeExactly 'connected'
-                }
-                It "Should find Route 10.88.65.0/24 -> 10.88.65.1 (C)" {
-                    $RouteTable[2].Destination | Should -BeExactly '10.88.65.0/24'
-                    $RouteTable[2].NextHop | Should -BeExactly '10.88.65.1'
-                    $RouteTable[2].Type | Should -BeExactly 'connected'
-                }
-            }
-            Describe "Get-PsRouteTable -PsSwitchType ExtremeEos" {
-                $RouteTable = Get-PsRouteTable -ConfigArray $SampleConfigSecureStackRouterContext -PsSwitchType ExtremeEos
-
-                It "Should find correct number of Routes" {
-                    $RouteTable.Count | Should -BeExactly 3
-                }
-                Context "Should report correct Route Table entries" {
-                    It "Should find Route 0.0.0.0/0 -> 10.88.192.254 (S)" {
-                        $RouteTable[0].Destination | Should -BeExactly '0.0.0.0/0'
-                        $RouteTable[0].NextHop | Should -BeExactly '10.88.192.254'
-                        $RouteTable[0].Type | Should -BeExactly 'candidate default'
-                    }
-                    It "Should find Route 10.88.64.0/24 -> 10.88.64.1 (C)" {
-                        $RouteTable[1].Destination | Should -BeExactly '10.88.64.0/24'
-                        $RouteTable[1].NextHop | Should -BeExactly '10.88.64.1'
-                        $RouteTable[1].Type | Should -BeExactly 'connected'
-                    }
-                    It "Should find Route 10.88.65.0/24 -> 10.88.65.1 (C)" {
-                        $RouteTable[2].Destination | Should -BeExactly '10.88.65.0/24'
-                        $RouteTable[2].NextHop | Should -BeExactly '10.88.65.1'
-                        $RouteTable[2].Type | Should -BeExactly 'connected'
+                    It "Should find Route 192.0.10.0/24 -> 10.88.192.253 (S)" {
+                        $RouteTable[3].Destination | Should -BeExactly '192.0.10.0/24'
+                        $RouteTable[3].NextHop | Should -BeExactly '10.88.192.253'
+                        $RouteTable[3].Type | Should -BeExactly 'static'
                     }
                 }
             }

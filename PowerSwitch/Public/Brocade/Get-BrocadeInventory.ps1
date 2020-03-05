@@ -33,6 +33,120 @@ function Get-BrocadeInventory {
     $ReturnObject.TenGigFiberCount = 0
     $ReturnObject.FortyGigFiberCount = 0
 
+    #region brocadeModuleMap
+    ###########################################################################################
+    # was originally doing this with regex, but was afraid of missing something
+
+    $BrocadeModuleMap = @{ }
+
+    $BrocadeModuleMap.'icx6450-24p-poe-port-management-module' = @{
+        BladeType = 'icx6450'
+        PortSpeed = '1gig'
+        PortType  = 'copper'
+        PortCount = 24
+        PortPoe   = $true
+    }
+
+    $BrocadeModuleMap.'icx6450-sfp-plus-4port-40g-module' = @{
+        BladeType = 'icx6450'
+        PortSpeed = '10gig'
+        PortType  = 'fiber'
+        PortCount = 4
+        PortPoe   = $false
+    }
+
+    $BrocadeModuleMap.'icx6610-48p-poe-port-management-module' = @{
+        BladeType = 'icx6610'
+        PortSpeed = '1gig'
+        PortType  = 'copper'
+        PortCount = 48
+        PortPoe   = $false
+    }
+
+    $BrocadeModuleMap.'icx6610-qsfp-10-port-160g-module' = @{
+        BladeType = 'icx6610'
+        PortSpeed = '40gig'
+        PortType  = 'fiber'
+        PortCount = 4
+        PortPoe   = $false
+    }
+
+    $BrocadeModuleMap.'icx6610-8-port-10g-dual-mode-module' = @{
+        BladeType = 'icx6610'
+        PortSpeed = '10gig'
+        PortType  = 'fiber'
+        PortCount = 8
+        PortPoe   = $false
+    }
+
+    $BrocadeModuleMap.'icx6610-48-port-management-module' = @{
+        BladeType = 'icx6610'
+        PortSpeed = '1gig'
+        PortType  = 'copper'
+        PortCount = 48
+        PortPoe   = $false
+    }
+
+    $BrocadeModuleMap.'fi-sx6-24-port-1gig-fiber-module' = @{
+        BladeType = 'fi-sx6'
+        PortSpeed = '1gig'
+        PortType  = 'fiber'
+        PortCount = 24
+        PortPoe   = $false
+    }
+
+    $BrocadeModuleMap.'fi-sx6-48-port-gig-copper-poe-module' = @{
+        BladeType = 'fi-sx6'
+        PortSpeed = '1gig'
+        PortType  = 'copper'
+        PortCount = 48
+        PortPoe   = $true
+    }
+
+    $BrocadeModuleMap.'fi-sx6-8-port-10gig-fiber-module' = @{
+        BladeType = 'fi-sx6'
+        PortSpeed = '10gig'
+        PortType  = 'fiber'
+        PortCount = 8
+        PortPoe   = $false
+    }
+
+    $BrocadeModuleMap.'fi-sx-0-port-management-module' = @{
+        BladeType = 'fi-sx'
+        PortSpeed = '1gig'
+        PortType  = 'fiber'
+        PortCount = 0
+        PortPoe   = $false
+    }
+
+    $BrocadeModuleMap.'fi-sx6-24-port-1gig-copper-poe-module' = @{
+        BladeType = 'fi-sx6'
+        PortSpeed = '1gig'
+        PortType  = 'copper'
+        PortCount = 24
+        PortPoe   = $true
+    }
+
+    $BrocadeModuleMap.'fi-sx6-xl-0-port-management-module' = @{
+        BladeType = 'fi-sx6'
+        PortSpeed = '1gig'
+        PortType  = 'copper'
+        PortCount = 0
+        PortPoe   = $true
+    }
+
+    $BrocadeModuleMap.'fi-sx6-24-port-1gig-copper-poe-module' = @{
+        BladeType = 'fi-sx6'
+        PortSpeed = '1gig'
+        PortType  = 'copper'
+        PortCount = 24
+        PortPoe   = $true
+    }
+
+    ###########################################################################################
+    #endregion brocadeModuleMap
+
+
     $IpRx = [regex] "(\d+)\.(\d+)\.(\d+)\.(\d+)"
 
     $TotalLines = $LoopArray.Count
@@ -67,121 +181,114 @@ function Get-BrocadeInventory {
             continue
         }
 
-
-
-
-        if ($StackNumber) {
-            # stack switches
-            # stack unit 1
-            #   module 1 icx6610-48p-poe-port-management-module
-            #   module 2 icx6610-qsfp-10-port-160g-module
-            #   module 3 icx6610-8-port-10g-dual-mode-module
-            $EvalParams.Regex = [regex] "^\s*module\ (?<num>\d+)\ (?<model>(?<bladetype>icx\d+)-((?<count>\d+)(?<porttype>p)-poe|(?<porttype>qsfp)-\d+|(?<count>\d+))-port-(?<speed>.+?)-.+)"
-        } else {
-            # chassis switches
-            # module 1 fi-sx6-8-port-10gig-fiber-module
-            # module 1 fi-sx6-48-port-gig-copper-poe-module
-            # module 1 fi-sx6-24-port-1gig-fiber-module
-            # module 1 fi-sx-0-port-management-module
-            # module 1 fi-sx6-xl-0-port-management-module
-            $EvalParams.Regex = [regex] '^\s*module\ (?<num>\d+)\ (?<model>(?<bladetype>fi-sx\d?(-xl)?)-(?<count>\d+)-port(-(?<speed>\d*?[a-z]+))?-(?<porttype>.+)(-(?<poe>poe|management))?-module)'
-        }
+        $EvalParams.Regex = [regex] "^\s*module\ (?<num>\d+)\ (?<model>.+)"
         $Eval = Get-RegexMatch @EvalParams
         if ($Eval) {
-            if ($StackNumber) {
+            $Model = ($Eval.Groups['model'].Value).Trim()
+            $Number = $Eval.Groups['num'].Value
+            $ModuleMapEntry = $BrocadeModuleMap.$Model
+
+            if ($ModuleMapEntry) {
                 $NewBlade = "" | Select-Object Number, Module, Model
-                $NewBlade.Number = $StackNumber
-                $NewBlade.Module = $Eval.Groups['num'].Value
-                $ReturnObject.StackMember += $NewBlade
+                $NewBlade.Model = $Model
+                if ($StackNumber) {
+                    $NewBlade.Number = $StackNumber
+                    $NewBlade.Module = $Number
+                    $ReturnObject.StackMember += $NewBlade
+                } else {
+                    #$NewBlade.Number = $Eval.Groups['num'].Value
+                    $NewBlade.Number = $Number
+                    $ReturnObject.ChassisMember += $NewBlade
+                }
+                Write-Verbose "$VerbosePrefix $i`: module: config started"
+                Write-Verbose "$VerbosePrefix $i`: module: decoding blade: $BladeNumber"
+
+                $BladeType = $ModuleMapEntry.BladeType
+                $PortSpeed = $ModuleMapEntry.PortSpeed
+                $PortType = $ModuleMapEntry.PortType
+                $PortCount = $ModuleMapEntry.PortCount
+                $PortPoe = $ModuleMapEntry.PortPoe
+
+                Write-Verbose "$VerbosePrefix $i`: module: decoding blade: BladeType: $BladeType"
+                Write-Verbose "$VerbosePrefix $i`: module: decoding blade: PortSpeed: $PortSpeed"
+                Write-Verbose "$VerbosePrefix $i`: module: decoding blade: PortType: $PortType"
+
+                if (($PortType -eq 'qsfp') -and ($PortSpeed -eq '160g')) {
+                    Write-Verbose "$VerbosePrefix $i`: module: decoding blade: adjusting for 4x40gig"
+                    $PortCount = 4
+                    $PortSpeed = '40gig'
+                }
+
+                if ($PortType -eq 'sfp-plus') {
+                    $PortSpeed = '10gig'
+                    $PortType = 'fiber'
+                }
+
+                if ($PortSpeed -eq 'management') {
+                    $PortSpeed = '1gig'
+                }
+
+                if ($PortSpeed -eq '10g') {
+                    $PortSpeed = '10gig'
+                    $PortType = 'fiber'
+                }
+
+                if (('' -eq $PortType) -and ($PortSpeed -eq '1gig')) {
+                    $PortType = 'copper'
+                }
+
+
+                switch -Regex ($PortType) {
+                    '^(copper-poe|p|copper)$' {
+                        switch -Regex ($PortSpeed) {
+                            '^(1gig|gig)$' {
+                                Write-Verbose "$VerbosePrefix Current OneGigCopperCount: $($ReturnObject.OneGigCopperPortCount); Current CopperPortTotal: $($ReturnObject.CopperPortTotal)"
+                                $ReturnObject.OneGigCopperPortCount += $PortCount
+                                $ReturnObject.CopperPortTotal += $PortCount
+                                Write-Verbose "$VerbosePrefix Adding $PortCount ports with speed $PortSpeed of type $PortType"
+                            }
+                            default {
+                                Write-Verbose "$VerbosePrefix Adding $PortCount ports with speed $PortSpeed of type $PortType"
+                            }
+                        }
+                    }
+                    '^(fiber|qsfp)$' {
+                        switch ($PortSpeed) {
+                            '1gig' {
+                                $ReturnObject.OneGigFiberCount += $PortCount
+                                $ReturnObject.FiberPortTotal += $PortCount
+                                Write-Verbose "$VerbosePrefix Adding $PortCount ports with speed $PortSpeed of type $PortType"
+                            }
+                            '10gig' {
+                                $ReturnObject.TenGigFiberCount += $PortCount
+                                $ReturnObject.FiberPortTotal += $PortCount
+                                Write-Verbose "$VerbosePrefix Adding $PortCount ports with speed $PortSpeed of type $PortType"
+                            }
+                            '40gig' {
+                                $ReturnObject.FortyGigFiberCount += $PortCount
+                                $ReturnObject.FiberPortTotal += $PortCount
+                                Write-Verbose "$VerbosePrefix Adding $PortCount ports with speed $PortSpeed of type $PortType"
+                            }
+                            default {
+                                Write-Warning "$VerbosePrefix unhandled PortSpeed/PortType combination: $PortSpeed/$PortType"
+                            }
+                        }
+                    }
+                    'management' {
+                        if ($PortCount -eq 0) {
+                            Write-Verbose "$VerbosePrefix skipping management blade with $PortCount ports"
+                        } else {
+                            Write-Warning "$VerbosePrefix unhandled PortType: $PortType with count: $PortCount"
+                        }
+                    }
+                    default {
+                        Write-Warning "$VerbosePrefix unhandled PortType: $PortType"
+                    }
+                }
+                continue
             } else {
-                $NewBlade = "" | Select-Object Number, Model
-                $NewBlade.Number = $Eval.Groups['num'].Value
-                $ReturnObject.ChassisMember += $NewBlade
+                Write-Warning "$VerbosePrefix unmatched module detected on line $i`: |$Model|"
             }
-            #$NewBlade.Model = @()
-
-            Write-Verbose "$VerbosePrefix $i`: module: config started"
-            #$BladeNumber = $Eval.Groups['num'].Value
-            Write-Verbose "$VerbosePrefix $i`: module: decoding blade: $BladeNumber"
-            $BladeType = $Eval.Groups['bladetype'].Value
-            $PortSpeed = $Eval.Groups['speed'].Value
-            $PortType = $Eval.Groups['porttype'].Value
-            $PortCount = [int]$Eval.Groups['count'].Value
-            $PortPoe = $Eval.Groups['poe'].Value
-
-            Write-Verbose "$VerbosePrefix $i`: module: decoding blade: BladeType: $BladeType"
-            Write-Verbose "$VerbosePrefix $i`: module: decoding blade: PortSpeed: $PortSpeed"
-            Write-Verbose "$VerbosePrefix $i`: module: decoding blade: PortType: $PortType"
-
-            if (($PortType -eq 'qsfp') -and ($PortSpeed -eq '160g')) {
-                Write-Verbose "$VerbosePrefix $i`: module: decoding blade: adjusting for 4x40gig"
-                $PortCount = 4
-                $PortSpeed = '40gig'
-            }
-
-            if ($PortSpeed -eq 'management') {
-                $PortSpeed = '1gig'
-            }
-            if ($PortSpeed -eq '10g') {
-                $PortSpeed = '10gig'
-                $PortType = 'fiber'
-            }
-
-            if (('' -eq $PortType) -and ($PortSpeed -eq '1gig')) {
-                $PortType = 'copper'
-            }
-
-
-            switch -Regex ($PortType) {
-                '^(copper-poe|p|copper)$' {
-                    switch -Regex ($PortSpeed) {
-                        '^(1gig|gig)$' {
-                            Write-Verbose "$VerbosePrefix Current OneGigCopperCount: $($ReturnObject.OneGigCopperPortCount); Current CopperPortTotal: $($ReturnObject.CopperPortTotal)"
-                            $ReturnObject.OneGigCopperPortCount += $PortCount
-                            $ReturnObject.CopperPortTotal += $PortCount
-                            Write-Verbose "$VerbosePrefix Adding $PortCount ports with speed $PortSpeed of type $PortType"
-                        }
-                        default {
-                            Write-Verbose "$VerbosePrefix Adding $PortCount ports with speed $PortSpeed of type $PortType"
-                        }
-                    }
-                }
-                '^(fiber|qsfp)$' {
-                    switch ($PortSpeed) {
-                        '1gig' {
-                            $ReturnObject.OneGigFiberCount += $PortCount
-                            $ReturnObject.FiberPortTotal += $PortCount
-                            Write-Verbose "$VerbosePrefix Adding $PortCount ports with speed $PortSpeed of type $PortType"
-                        }
-                        '10gig' {
-                            $ReturnObject.TenGigFiberCount += $PortCount
-                            $ReturnObject.FiberPortTotal += $PortCount
-                            Write-Verbose "$VerbosePrefix Adding $PortCount ports with speed $PortSpeed of type $PortType"
-                        }
-                        '40gig' {
-                            $ReturnObject.FortyGigFiberCount += $PortCount
-                            $ReturnObject.FiberPortTotal += $PortCount
-                            Write-Verbose "$VerbosePrefix Adding $PortCount ports with speed $PortSpeed of type $PortType"
-                        }
-                        default {
-                            Write-Warning "$VerbosePrefix unhandled PortSpeed/PortType combination: $PortSpeed/$PortType"
-                        }
-                    }
-                }
-                'management' {
-                    if ($PortCount -eq 0) {
-                        Write-Verbose "$VerbosePrefix skipping management blade with $PortCount ports"
-                    } else {
-                        Write-Warning "$VerbosePrefix unhandled PortType: $PortType with count: $PortCount"
-                    }
-                }
-                default {
-                    Write-Warning "$VerbosePrefix unhandled PortType: $PortType"
-                }
-            }
-
-            $NewBlade.Model = $Eval.Groups['model'].Value
-            continue
         }
 
         $EvalParams.Regex = [regex] "^hostname\ (.+)"

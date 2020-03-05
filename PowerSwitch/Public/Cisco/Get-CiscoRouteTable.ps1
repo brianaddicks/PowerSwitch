@@ -34,6 +34,12 @@ function Get-CiscoRouteTable {
             [string]$RouteType
         )
 
+        switch ($RouteType) {
+            'D EX' {
+                $RouteType = 'EX'
+            }
+        }
+
         $TypeMap = @{
             'L'  = 'Special Lookup'
             'C'  = 'connected'
@@ -130,7 +136,7 @@ function Get-CiscoRouteTable {
         D EX    138.33.0.0/16 [170/28416] via 10.172.1.199, 5w2d, Vlan321 #>
 
         # ip route <network> <mask> <nexthop>
-        $EvalParams.Regex = [regex] "^(?<type>[^\s+])(\*)?\s+(?<destination>$IpRx\/\d+)\s(is\ directly\ connected|\[\d+\/\d+\]\ via\ (?<gateway>$IpRx))"
+        $EvalParams.Regex = [regex] "^(?<type>.+?)(\*)?\s{2,}(?<destination>$IpRx\/\d+)\s(is\ directly\ connected|\[\d+\/\d+\]\ via\ (?<gateway>$IpRx))"
         $Eval = Get-RegexMatch @EvalParams
         if ($Eval) {
             $new = [IpRoute]::new()

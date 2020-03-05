@@ -23,6 +23,8 @@ module 5 fi-sx6-24-port-1gig-fiber-module
 module 9 fi-sx6-xl-0-port-management-module
 module 10 fi-sx6-24-port-1gig-copper-poe-module
 module 11 fi-sx6-48-port-gig-copper-poe-module
+module 12 fi-sx-0-port-management-module
+!
 hostname ChassisSwitch
 '@
         $ChassisConfig = $ChassisConfig.Split([Environment]::NewLine)
@@ -43,6 +45,10 @@ stack unit 2
   stack-trunk 3/2/1 to 3/2/2
   stack-trunk 3/2/6 to 3/2/7
   stack-port 3/2/1 3/2/6
+stack unit 3
+  module 1 icx6450-24p-poe-port-management-module
+  module 2 icx6450-sfp-plus-4port-40g-module
+!
 hostname StackSwitch
 '@
         $StackConfig = $StackConfig.Split([Environment]::NewLine)
@@ -54,7 +60,7 @@ hostname StackSwitch
         Context ChassisConfig {
             $ParsedObject = Get-BrocadeInventory -ConfigArray $ChassisConfig
             It "should return correct number of objects" {
-                $ParsedObject.ChassisMember.Count | Should -BeExactly 6
+                $ParsedObject.ChassisMember.Count | Should -BeExactly 7
                 $ParsedObject.StackMember.Count | Should -BeExactly 0
                 $ParsedObject.CopperPortTotal | Should -BeExactly 96
                 $ParsedObject.FiberPortTotal | Should -BeExactly 32
@@ -93,20 +99,27 @@ hostname StackSwitch
                 $ThisObject.Number | Should -BeExactly 11
                 $ThisObject.Model | Should -BeExactly 'fi-sx6-48-port-gig-copper-poe-module'
             }
+            It "should return second 'fi-sx-0-port-management-module' blade correctly" {
+                $ThisObject = $ParsedObject.ChassisMember[6]
+                $ThisObject.Number | Should -BeExactly 12
+                $ThisObject.Model | Should -BeExactly 'fi-sx-0-port-management-module'
+            }
         }
         ########################################################################
         #endregion chassis
 
+        #region stack
+        ########################################################################
         Context StackConfig {
             $ParsedObject = Get-BrocadeInventory -ConfigArray $StackConfig
             It "should return correct number of objects" {
                 $ParsedObject.ChassisMember.Count | Should -BeExactly 0
-                $ParsedObject.StackMember.Count | Should -BeExactly 6
-                $ParsedObject.CopperPortTotal | Should -BeExactly 96
-                $ParsedObject.FiberPortTotal | Should -BeExactly 24
-                $ParsedObject.OneGigCopperPortCount | Should -BeExactly 96
+                $ParsedObject.StackMember.Count | Should -BeExactly 8
+                $ParsedObject.CopperPortTotal | Should -BeExactly 120
+                $ParsedObject.FiberPortTotal | Should -BeExactly 28
+                $ParsedObject.OneGigCopperPortCount | Should -BeExactly 120
                 $ParsedObject.OneGigFiberCount | Should -BeExactly 0
-                $ParsedObject.TenGigFiberCount | Should -BeExactly 16
+                $ParsedObject.TenGigFiberCount | Should -BeExactly 20
                 $ParsedObject.FortyGigFiberCount | Should -BeExactly 8
             }
             Context 'Stack Member 1' {
@@ -149,6 +162,22 @@ hostname StackSwitch
                     $ThisObject.Model | Should -BeExactly 'icx6610-8-port-10g-dual-mode-module'
                 }
             }
+            Context 'Stack Member 3' {
+                It "should return 'icx6450-24p-poe-port-management-module' module correctly" {
+                    $ThisObject = $ParsedObject.StackMember[6]
+                    $ThisObject.Number | Should -BeExactly 3
+                    $ThisObject.Module | Should -BeExactly 1
+                    $ThisObject.Model | Should -BeExactly 'icx6450-24p-poe-port-management-module'
+                }
+                It "should return 'icx6450-sfp-plus-4port-40g-module' module correctly" {
+                    $ThisObject = $ParsedObject.StackMember[7]
+                    $ThisObject.Number | Should -BeExactly 3
+                    $ThisObject.Module | Should -BeExactly 2
+                    $ThisObject.Model | Should -BeExactly 'icx6450-sfp-plus-4port-40g-module'
+                }
+            }
         }
+        ########################################################################
+        #endregion stack
     }
 }
