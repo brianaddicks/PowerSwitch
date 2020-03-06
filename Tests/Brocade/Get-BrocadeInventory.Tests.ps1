@@ -24,6 +24,7 @@ module 9 fi-sx6-xl-0-port-management-module
 module 10 fi-sx6-24-port-1gig-copper-poe-module
 module 11 fi-sx6-48-port-gig-copper-poe-module
 module 12 fi-sx-0-port-management-module
+module 13 fi-sx6-24-port-100m-1g-fiber-module
 !
 hostname ChassisSwitch
 '@
@@ -60,12 +61,12 @@ hostname StackSwitch
         Context ChassisConfig {
             $ParsedObject = Get-BrocadeInventory -ConfigArray $ChassisConfig
             It "should return correct number of objects" {
-                $ParsedObject.ChassisMember.Count | Should -BeExactly 7
+                $ParsedObject.ChassisMember.Count | Should -BeExactly 8
                 $ParsedObject.StackMember.Count | Should -BeExactly 0
                 $ParsedObject.CopperPortTotal | Should -BeExactly 96
-                $ParsedObject.FiberPortTotal | Should -BeExactly 32
+                $ParsedObject.FiberPortTotal | Should -BeExactly 56
                 $ParsedObject.OneGigCopperPortCount | Should -BeExactly 96
-                $ParsedObject.OneGigFiberCount | Should -BeExactly 24
+                $ParsedObject.OneGigFiberCount | Should -BeExactly 48
                 $ParsedObject.TenGigFiberCount | Should -BeExactly 8
                 $ParsedObject.FortyGigFiberCount | Should -BeExactly 0
             }
@@ -103,6 +104,11 @@ hostname StackSwitch
                 $ThisObject = $ParsedObject.ChassisMember[6]
                 $ThisObject.Number | Should -BeExactly 12
                 $ThisObject.Model | Should -BeExactly 'fi-sx-0-port-management-module'
+            }
+            It "should return second 'fi-sx6-24-port-100m-1g-fiber-module' blade correctly" {
+                $ThisObject = $ParsedObject.ChassisMember[7]
+                $ThisObject.Number | Should -BeExactly 13
+                $ThisObject.Model | Should -BeExactly 'fi-sx6-24-port-100m-1g-fiber-module'
             }
         }
         ########################################################################

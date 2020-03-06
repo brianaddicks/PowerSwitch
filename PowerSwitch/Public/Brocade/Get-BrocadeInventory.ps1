@@ -143,6 +143,14 @@ function Get-BrocadeInventory {
         PortPoe   = $true
     }
 
+    $BrocadeModuleMap.'fi-sx6-24-port-100m-1g-fiber-module' = @{
+        BladeType = 'fi-sx6'
+        PortSpeed = '1gig'
+        PortType  = 'fiber'
+        PortCount = 24
+        PortPoe   = $false
+    }
+
     ###########################################################################################
     #endregion brocadeModuleMap
 
