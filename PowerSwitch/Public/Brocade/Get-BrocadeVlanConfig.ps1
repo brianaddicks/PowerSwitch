@@ -56,7 +56,7 @@ function Get-BrocadeVlanConfig {
         $EvalParams.StringToEval = $entry
 
         # vlan create
-        $EvalParams.Regex = [regex] "^vlan\ (?<id>\d+)\ name\ (?<name>.+?)\ "
+        $EvalParams.Regex = [regex] "^vlan\ (?<id>\d+)(\ name\ (?<name>.+?)\ )?"
         $Eval = Get-RegexMatch @EvalParams
         if ($Eval) {
             Write-Verbose "$VerbosePrefix $i`: vlan: create"
@@ -110,8 +110,12 @@ function Get-BrocadeVlanConfig {
                 $DefaultVlan = $ReturnArray | Where-Object { $_.Id -eq 1 }
                 $DefaultVlan.UntaggedPorts = $DefaultVlan.UntaggedPorts | Where-Object { $_ -ne $ThisInterface }
                 $ThisVlan = $ReturnArray | Where-Object { $_.Id -eq $Eval }
-                $ThisVlan.UntaggedPorts += $ThisInterface
-                $ThisVlan.TaggedPorts = $ThisVlan.TaggedPorts | Where-Object { $_ -ne $ThisInterface }
+                if ($ThisVlan) {
+                    $ThisVlan.UntaggedPorts += $ThisInterface
+                    $ThisVlan.TaggedPorts = $ThisVlan.TaggedPorts | Where-Object { $_ -ne $ThisInterface }
+                } else {
+                    Write-Warning "$VerbosePrefix $i`: Unable to find vlan with Id: $Eval"
+                }
                 continue
             }
 
