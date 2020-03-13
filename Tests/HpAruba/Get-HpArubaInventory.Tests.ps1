@@ -124,26 +124,26 @@ vlan 1
             $ParsedObject = Get-HpArubaInventory -ConfigArray $StackConfig
             It "should return correct number of objects" {
                 $ParsedObject.ChassisMember.Count | Should -BeExactly 0
-                $ParsedObject.StackMember.Count | Should -BeExactly 1
-                $ParsedObject.CopperPortTotal | Should -BeExactly 48
-                $ParsedObject.FiberPortTotal | Should -BeExactly 8
-                $ParsedObject.OneGigCopperPortCount | Should -BeExactly 48
-                $ParsedObject.OneGigFiberCount | Should -BeExactly 4
+                $ParsedObject.StackMember.Count | Should -BeExactly 4
+                $ParsedObject.CopperPortTotal | Should -BeExactly 96
+                $ParsedObject.FiberPortTotal | Should -BeExactly 12
+                $ParsedObject.OneGigCopperPortCount | Should -BeExactly 96
+                $ParsedObject.OneGigFiberCount | Should -BeExactly 8
                 $ParsedObject.TenGigFiberCount | Should -BeExactly 4
                 $ParsedObject.FortyGigFiberCount | Should -BeExactly 0
                 $ParsedObject.PowerSupply.Count | Should -BeExactly 2
-                $ParsedObject.Transceiver.Count | Should -BeExactly 1
+                $ParsedObject.Transceiver.Count | Should -BeExactly 2
                 $ParsedObject.Hostname | Should -BeExactly 'Aruba-Stack-2930M'
             }
             Context 'Stack Member 1' {
-                It "should return main switch correctly" {
+                <#                 It "should return main switch correctly" {
                     $ThisObject = $ParsedObject.StackMember[0]
                     $ThisObject.Number | Should -BeExactly 1
                     $ThisObject.Model | Should -BeExactly 'JL322A'
                     $ThisObject.Description | Should -BeExactly 'Aruba 2930M 48G PoE+ 1-slot Switch'
                     $ThisObject.SerialNumber | Should -BeExactly 'SG98JQNYXR'
                     $ThisObject.MacAddress | Should -BeExactly '9020c2-fcddc0'
-                }
+                } #>
                 It "should return power supplies correctly" {
                     $ThisObject = $ParsedObject.PowerSupply
                     $ThisObject.Count | Should -BeExactly 2

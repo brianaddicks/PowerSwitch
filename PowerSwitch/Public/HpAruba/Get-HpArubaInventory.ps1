@@ -509,6 +509,9 @@ function Get-HpArubaInventory {
                             }
                             break
                         }
+                        'stack' {
+                            # don't need to do anything with this.
+                        }
                         default {
                             Write-Warning "$VerbosePrefix unhandled port type $($p.PortType)"
                         }
@@ -641,7 +644,7 @@ function Get-HpArubaInventory {
             }
         } #>
 
-        $EvalParams.Regex = [regex] '^hostname\ "?(.+?)"?'
+        $EvalParams.Regex = [regex] '^hostname\ "?([^"]+)'
         $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
         if ($Eval) {
             $ReturnObject.Hostname = $Eval
