@@ -326,7 +326,7 @@ function Get-HpArubaInventory {
                 continue
             }
 
-            # transceiver
+            # stacking config
             $EvalParams.Regex = [regex] '^\s+member\s(?<number>\d+)\stype\s"(?<model>.+?)"\smac-address\s(?<mac>[^\ ]+?)'
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {

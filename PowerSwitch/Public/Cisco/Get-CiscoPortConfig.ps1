@@ -122,6 +122,14 @@ function Get-CiscoPortConfig {
                 continue
             }
 
+            # channel-group
+            $EvalParams.Regex = [regex] "^\ +channel-group\ (\d+)"
+            $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
+            if ($Eval) {
+                $new.Aggregate = $Eval
+                continue
+            }
+
             # spanning-tree bpduguard enable
             $EvalParams.Regex = [regex] "^\ +spanning-tree bpduguard enable"
             $Eval = Get-RegexMatch @EvalParams

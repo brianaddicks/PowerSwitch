@@ -13,9 +13,11 @@ Class Port {
     [string]$Duplex
     [string]$Type
     [string]$Mode
+    [string]$Aggregate
 
     [string]$StpMode
     [bool]$BpduGuard = $false
+    [bool]$NoNegotiate = $false
 
     [bool]$DhcpSnoopingTrust = $false
     ##################################### Initiators #####################################
