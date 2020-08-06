@@ -15,7 +15,7 @@ InModuleScope $ENV:BHProjectName {
         $Verbose.add("Verbose", $True)
     }
 
-    Describe "Resolve-ShortPortString" -tag portstring {
+    Describe "Resolve-ShortPortString" {
         Context "Single Exos switch with stacking disabled" {
             BeforeEach {
                 $PortList = @()
