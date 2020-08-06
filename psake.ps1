@@ -38,6 +38,7 @@ Task Test -Depends Init {
     $PesterConfiguration.Should.ErrorAction = 'Stop'
     $PesterConfiguration.CodeCoverage.Enabled = $true
     $PesterConfiguration.TestResult.OutputPath = "$ProjectRoot\$TestFile"
+    $PesterConfiguration.TestResult.Enabled = $true
     $PesterConfiguration.Run.PassThru = $true
 
     #$TestResults = Invoke-Pester -Path $ProjectRoot\Tests -PassThru -OutputFormat NUnitXml -OutputFile "$ProjectRoot\$TestFile"
