@@ -50,7 +50,7 @@ function Get-EosAaaConfig {
         $EvalParams = @{ }
         $EvalParams.StringToEval = $entry
 
-        $EvalParams.Regex = [regex] "^#\ radius"
+        $EvalParams.Regex = [regex] "^#\ *radius"
         $Eval = Get-RegexMatch @EvalParams
         if ($Eval) {
             Write-Verbose "$VerbosePrefix $i`: radius: config started"

@@ -15,7 +15,7 @@ InModuleScope $ENV:BHProjectName {
         $Verbose.add("Verbose", $True)
     }
 
-    Describe "Get-ExosVlanConfig" {
+    BeforeAll {
         $SampleConfig = @()
         $SampleConfig += '#'
         $SampleConfig += '# Module vlan configuration.'
@@ -32,7 +32,9 @@ InModuleScope $ENV:BHProjectName {
         $SampleConfig += '#'
 
         $VlanConfig = Get-ExosVlanConfig -ConfigArray $SampleConfig
+    }
 
+    Describe "Get-ExosVlanConfig" {
         It "Should find correct number of Vlans" {
             $VlanConfig.Count | Should -BeExactly 4
         }

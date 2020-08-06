@@ -12,7 +12,7 @@
     RootModule        = 'PowerSwitch.psm1'
 
     # Version number of this module.
-    ModuleVersion     = '1.1.4'
+    ModuleVersion     = '1.1.6'
 
     # Supported PSEditions
     # CompatiblePSEditions = @()
@@ -122,6 +122,8 @@
     # DefaultCommandPrefix = ''
 
 }
+
+
 
 
 

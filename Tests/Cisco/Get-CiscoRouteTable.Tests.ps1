@@ -4,8 +4,6 @@ if (-not $ENV:BHProjectPath) {
 Remove-Module $ENV:BHProjectName -ErrorAction SilentlyContinue
 Import-Module (Join-Path $ENV:BHProjectPath $ENV:BHProjectName) -Force
 
-
-
 InModuleScope $ENV:BHProjectName {
     $PSVersion = $PSVersionTable.PSVersion.Major
     $ProjectRoot = $ENV:BHProjectPath
@@ -15,17 +13,21 @@ InModuleScope $ENV:BHProjectName {
         $Verbose.add("Verbose", $True)
     }
 
-    $SampleRouteTable = @'
+    BeforeAll {
+        $SampleRouteTable = @'
 S*   0.0.0.0/0 [1/0] via 10.88.192.254
 L       10.88.64.0/24 is directly connected, Vlan88
 D EX    10.88.65.0/24 [170/28416] via 10.88.65.1, 5w2d, Vlan321
 S       192.0.10.0/24 [1/0] via 10.88.192.253
 '@
-    $SampleRouteTable = $SampleRouteTable.Split([Environment]::NewLine)
+        $SampleRouteTable = $SampleRouteTable.Split([Environment]::NewLine)
+    }
 
     Describe "Get-CiscoRouteTable" {
         Context "Explicit Command" {
-            $RouteTable = Get-CiscoRouteTable -ConfigArray $SampleRouteTable
+            BeforeAll {
+                $RouteTable = Get-CiscoRouteTable -ConfigArray $SampleRouteTable
+            }
 
             It "Should find correct number of Routes" {
                 $RouteTable.Count | Should -BeExactly 4
@@ -53,7 +55,9 @@ S       192.0.10.0/24 [1/0] via 10.88.192.253
                 }
             }
             Describe "Get-PsRouteTable -PsSwitchType Cisco" {
-                $RouteTable = Get-PsRouteTable -ConfigArray $SampleRouteTable -PsSwitchType Cisco
+                BeforeAll {
+                    $RouteTable = Get-PsRouteTable -ConfigArray $SampleRouteTable -PsSwitchType Cisco
+                }
 
                 It "Should find correct number of Routes" {
                     $RouteTable.Count | Should -BeExactly 4

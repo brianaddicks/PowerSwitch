@@ -13,7 +13,7 @@ InModuleScope $ENV:BHProjectName {
         $Verbose.add("Verbose", $True)
     }
 
-    Describe "Get-HpArubaInventory" {
+    BeforeAll {
         #region dummydata
         ########################################################################
         $StackConfig = @'
@@ -115,13 +115,15 @@ vlan 1
    exit
 '@
         $StackConfig = $StackConfig.Split([Environment]::NewLine)
+        $ParsedObject = Get-HpArubaInventory -ConfigArray $StackConfig
         ########################################################################
         #endregion dummydata
+    }
 
+    Describe "Get-HpArubaInventory" {
         #region stack
         ########################################################################
         Context StackConfig {
-            $ParsedObject = Get-HpArubaInventory -ConfigArray $StackConfig
             It "should return correct number of objects" {
                 $ParsedObject.ChassisMember.Count | Should -BeExactly 0
                 $ParsedObject.StackMember.Count | Should -BeExactly 4

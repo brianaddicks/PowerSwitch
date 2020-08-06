@@ -13,7 +13,7 @@ InModuleScope $ENV:BHProjectName {
         $Verbose.add("Verbose", $True)
     }
 
-    Describe "Get-BrocadeInventory" {
+    BeforeAll {
         #region dummydata
         ########################################################################
         $ChassisConfig = @'
@@ -55,11 +55,16 @@ hostname StackSwitch
         $StackConfig = $StackConfig.Split([Environment]::NewLine)
         ########################################################################
         #endregion dummydata
+    }
+
+    Describe "Get-BrocadeInventory" {
 
         #region chassis
         ########################################################################
         Context ChassisConfig {
-            $ParsedObject = Get-BrocadeInventory -ConfigArray $ChassisConfig
+            BeforeAll {
+                $ParsedObject = Get-BrocadeInventory -ConfigArray $ChassisConfig
+            }
             It "should return correct number of objects" {
                 $ParsedObject.ChassisMember.Count | Should -BeExactly 8
                 $ParsedObject.StackMember.Count | Should -BeExactly 0
@@ -117,7 +122,9 @@ hostname StackSwitch
         #region stack
         ########################################################################
         Context StackConfig {
-            $ParsedObject = Get-BrocadeInventory -ConfigArray $StackConfig
+            BeforeAll {
+                $ParsedObject = Get-BrocadeInventory -ConfigArray $StackConfig
+            }
             It "should return correct number of objects" {
                 $ParsedObject.ChassisMember.Count | Should -BeExactly 0
                 $ParsedObject.StackMember.Count | Should -BeExactly 8

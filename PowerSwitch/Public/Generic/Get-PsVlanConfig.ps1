@@ -8,7 +8,7 @@ function Get-PsVlanConfig {
         [Parameter(Mandatory = $True, Position = 0, ParameterSetName = 'array')]
         [array]$ConfigArray,
 
-        [Parameter(Mandatory = $True, Position = 1)]
+        [Parameter(Mandatory = $false, Position = 1)]
         [ValidateSet('ExtremeEos', 'HpComware', 'HpAruba', 'Cisco', 'ExtremeExos')]
         [string]$PsSwitchType
     )
@@ -23,6 +23,10 @@ function Get-PsVlanConfig {
         }
     } else {
         $LoopArray = $ConfigArray
+    }
+
+    if (-not $PsSwitchType) {
+        $PsSwitchType = Get-PsSwitchType -ConfigArray $LoopArray
     }
 
     # Get the switch type
