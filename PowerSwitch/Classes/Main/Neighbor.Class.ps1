@@ -3,7 +3,11 @@ Class Neighbor {
     [string]$RemotePort
     [string]$DeviceId
     [string]$DeviceName
+    [string]$DeviceDescription
     [string]$IpAddress
+    [string[]]$CapabilitiesSupported
+    [string[]]$CapabilitiesEnabled
+
     [bool]$LinkLayerDiscoveryProtocol = $false
     [bool]$CabletronDiscoveryProtocol = $false
     [bool]$CiscoDiscoveryProtocol = $false

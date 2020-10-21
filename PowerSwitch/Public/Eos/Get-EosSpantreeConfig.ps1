@@ -25,6 +25,8 @@ function Get-EosSpantreeConfig {
 
     # Setup ReturnObject
     $ReturnObject = @{}
+    $ReturnObject.StpEnabled = $true
+    $ReturnObject.StpMode = 'mstp'
     $ReturnObject.Priority = 32768
     $ReturnObject.AdminEdgePorts = @()
     $ReturnObject.NonAdminEdgePorts = $Ports
@@ -107,11 +109,27 @@ function Get-EosSpantreeConfig {
                 $ReturnObject.AdminDisabledPorts += $Eval
             }
 
+            # set spantree stpmode none
+            $EvalParams.Regex = [regex] "^set\ spantree\ stpmode\ (.+)"
+            $Eval = Get-RegexMatch @EvalParams
+            if ($Eval) {
+                $ReturnObject.StpMode = $Eval
+                $ReturnObject.StpEnabled = $false
+            }
+
+            # set spantree disable
+            $EvalParams.Regex = [regex] "^set\ spantree\ (disable)"
+            $Eval = Get-RegexMatch @EvalParams
+            if ($Eval) {
+                $ReturnObject.StpEnabled = $false
+                $ReturnObject.StpMode = 'none'
+            }
 
 
             $Regex = [regex] '^#'
             $Match = Get-RegexMatch $Regex $entry
             if ($Match) {
+                Write-Verbose "$VerbosePrefix $i`: spantree: config complete"
                 break
             }
         }

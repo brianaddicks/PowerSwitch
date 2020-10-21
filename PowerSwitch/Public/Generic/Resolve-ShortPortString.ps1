@@ -15,6 +15,12 @@ function Resolve-ShortPortString {
     switch ($SwitchType) {
         'Exos' {
             foreach ($port in $PortList) {
+                # check for correct format
+                $Rx = [regex] '(^\d+$|^\d+:\d+$)'
+                if (-not $Rx.Match($port).Success) {
+                    Throw "$VerbosePrefix PortList contains invalid port name: $port"
+                }
+
                 $Split = $port.Split(':')
                 if ($Split.Count -gt 1) {
                     $StackNumber = $Split[0]

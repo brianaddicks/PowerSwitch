@@ -48,13 +48,13 @@ Class Vlan {
 
         # tagged ports
         if ($this.TaggedPorts.Count -gt 0) {
-            $ResolvedPortString = $this.TaggedPorts -join ','
+            $ResolvedPortString = Resolve-ShortPortString -PortList $this.TaggedPorts -SwitchType Exos
             $ReturnObject += 'configure vlan "' + $VlanName + '" add ports ' + $ResolvedPortString + ' tagged'
         }
 
         # tagged ports
         if ($this.UntaggedPorts.Count -gt 0) {
-            $ResolvedPortString = $this.UntaggedPorts -join ','
+            $ResolvedPortString = Resolve-ShortPortString -PortList $this.UntaggedPorts -SwitchType Exos
             $ReturnObject += 'configure vlan "' + $VlanName + '" add ports ' + $ResolvedPortString + ' untagged'
         }
 
