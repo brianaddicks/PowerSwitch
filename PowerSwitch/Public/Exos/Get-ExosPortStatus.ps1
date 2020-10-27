@@ -10,7 +10,7 @@ function Get-ExosPortStatus {
     )
 
     # It's nice to be able to see what cmdlet is throwing output isn't it?
-    $VerbosePrefix = "Get-ExosVlanConfig:"
+    $VerbosePrefix = "Get-ExosPortStatus:"
 
     # Check for path and import
     if ($ConfigPath) {
@@ -23,7 +23,7 @@ function Get-ExosPortStatus {
 
     # Setup return Array
     $ReturnArray = @()
-    $VlanConfig= Get-ExosVlanConfig -ConfigArray $LoopArray
+    $VlanConfig = Get-ExosVlanConfig -ConfigArray $LoopArray
     $TotalLines = $LoopArray.Count
     $i = 0
     $StopWatch = [System.Diagnostics.Stopwatch]::StartNew() # used by Write-Progress so it doesn't slow the whole function down
@@ -48,64 +48,76 @@ function Get-ExosPortStatus {
         $EvalParams = @{}
         $EvalParams.StringToEval = $entry
 
-        $EvalParams.Regex = [regex] "^=================================================================="
+        <# $EvalParams.Regex = [regex] "^=================================================================="
         $Eval = Get-RegexMatch @EvalParams
         if ($Eval) {
             Write-Verbose "$VerbosePrefix $i`: Port: status started"
             $KeepGoing = $true
             continue
+        } #>
+
+        $EvalParams.Regex = [regex] "^(?<portname>Port\s+)(?<displaystring>Display\s+)(?<vlanname>VLAN\sName\s+)(?<portstate>Port\s+)(?<linkstate>Link\s+)(?<speed>Speed\s+)(?<duplex>Duplex)"
+        $Eval = Get-RegexMatch @EvalParams
+        if ($Eval) {
+            Write-Verbose "$VerbosePrefix $i`: Port: status started"
+            $KeepGoing = $true
+
+            $PortStatusRxString = "(?<portname>\d.{" + (($Eval.Groups['portname'].Value).Length - 1) + "})"
+            $PortStatusRxString += "(?<displaystring>.{" + ($Eval.Groups['displaystring'].Value).Length + "})"
+            $PortStatusRxString += "(?<vlanname>.{" + ($Eval.Groups['vlanname'].Value).Length + "})"
+            $PortStatusRxString += "(?<portstate>.{" + ($Eval.Groups['portstate'].Value).Length + "})"
+            $PortStatusRxString += "(?<linkstate>.{1," + ($Eval.Groups['linkstate'].Value).Length + "})"
+            $PortStatusRxString += "(?<speed>.{" + ($Eval.Groups['speed'].Value).Length + "})?"
+            $PortStatusRxString += "(?<duplex>.{1," + ($Eval.Groups['duplex'].Value).Length + "})?"
+
+            $PortStatusRx = [regex] $PortStatusRxString
+            continue
         }
 
         if ($KeepGoing) {
-            # create vlan "(vlan-name)"
-            $EvalParams.Regex = [regex] "^(?<port>.{1,6})(?<description>.{1,16})(?<vlan>.{1,20})(?<portstate>.{1,6})(?<linkstate>.{1,6})(?<speed>.{1,6})(?<duplex>.{1,6})"
+            $EvalParams.Regex = $PortStatusRx
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
-                $Port = ($Eval.Groups['port'].Value).Trim()
-                $Description = ($Eval.Groups['description'].Value).Trim()
-                $Vlan = ($Eval.Groups['vlan'].Value).Trim()
-                $PortState = ($Eval.Groups['portstate'].Value).Trim()
-                $LinkState = ($Eval.Groups['linkstate'].Value).Trim()
-                $Speed = ($Eval.Groups['speed'].Value).Trim()
-                $Duplex = ($Eval.Groups['duplex'].Value).Trim()
-                #Write-Host "$Port $Description $Vlan $PortState $LinkState $Speed $Duplex"
-                $NewPort = [Port]::new($Port)
-                $NewPort.Alias = $Description
-                if ($PortState -eq "D" -or $PortState -eq "F") {
-                    $NewPort.AdminStatus = "Disabled"
-                }else{
-                    $NewPort.AdminStatus = "Enabled"
-                }
-                $VlanConfigUntaggedPorts = $VlanConfig | Where-Object { $_.UntaggedPorts -contains $Port }
-                    $NewPort.NativeVlan = $VlanConfigUntaggedPorts.Id
-                    $NewPort.UntaggedVlan = $VlanConfigUntaggedPorts.Id   
-                $VlanConfigTaggedPorts = $VlanConfig | Where-Object { $_.TaggedPorts -contains $Port }
-                $NewPort.VoiceVlan = $null
-                $NewPort.TaggedVlan = $VlanConfigTaggedPorts.Id
-                if ($LinkState -eq "A") {
-                    $NewPort.OperStatus = "Active"
-                }elseif ($LinkState -eq "R") {
-                    $NewPort.OperStatus = "Ready"
-                }elseif ($LinkState -eq "NP") {
-                    $NewPort.OperStatus = "Port Not Present"
-                }elseif ($LinkState -eq "L") {
-                    $NewPort.OperStatus = "Loopback"
-                }elseif ($LinkState -eq "D") {
-                    $NewPort.OperStatus = "ELSM Enabled but not up"
-                }elseif ($LinkState -eq "d") {
-                    $NewPort.OperStatus = "Ethernet OAM Enabled but not up"
-                }
-                $NewPort.Speed = $Speed
-                $NewPort.Duplex = $Duplex 
+                $Name = ($Eval.Groups['portname'].Value).Trim()
+                Write-Verbose "$VerbosePrefix port found: $Name"
+
+                $NewPort = [Port]::new($Name)
+
+                $NewPort.Alias = ($Eval.Groups['displaystring'].Value).Trim()
+                $NewPort.AdminStatus = ($Eval.Groups['portstate'].Value).Trim()
+                $NewPort.OperStatus = ($Eval.Groups['linkstate'].Value).Trim()
+                $NewPort.Speed = ($Eval.Groups['speed'].Value).Trim()
+                $NewPort.Duplex = ($Eval.Groups['duplex'].Value).Trim()
+
+                $AdminStatusDecoder = New-Object system.collections.hashtable
+                $AdminStatusDecoder.D = 'Disabled'
+                $AdminStatusDecoder.E = 'Enabled'
+                $AdminStatusDecoder.F = 'Disabled by link-flap detection'
+                $AdminStatusDecoder.L = 'Disabled due to licensing'
+
+                $NewPort.AdminStatus = $AdminStatusDecoder."$($NewPort.AdminStatus)"
+
+                $OperStatusDecoder = New-Object system.collections.hashtable
+                $OperStatusDecoder.A = 'Active'
+                $OperStatusDecoder.E = 'Enabled'
+                $OperStatusDecoder.R = 'Ready'
+                $OperStatusDecoder.NP = 'Port Not Present'
+                $OperStatusDecoder.L = 'Loopback'
+                $OperStatusDecoder.D = 'ELSM Enabled but not up'
+                $OperStatusDecoder.d = 'Ethernet OAM Enabled but not up'
+
+                $NewPort.OperStatus = $OperStatusDecoder."$($NewPort.OperStatus)"
+
                 $ReturnArray += $NewPort
                 continue
             }
 
 
             # next config section
-            $EvalParams.Regex = [regex] '^(==================================================================)'
+            $EvalParams.Regex = [regex] '^=+'
             $Eval = Get-RegexMatch @EvalParams
-            if ($Eval) {
+            if ($Eval -and $ReturnArray.Count -gt 0) {
+                Write-Verbose "$VerbosePrefix $i`: Port: status complete"
                 break fileloop
             }
         }

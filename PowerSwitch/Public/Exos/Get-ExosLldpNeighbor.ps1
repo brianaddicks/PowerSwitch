@@ -48,7 +48,7 @@ function Get-ExosLldpNeighbor {
         $EvalParams = @{ }
         $EvalParams.StringToEval = $entry
 
-        $EvalParams.Regex = [regex] "#\ show\ lldp\ neigh(bor)?\ detail"
+        $EvalParams.Regex = [regex] "#\ show\ lld(p)\ neigh[bors]+\ detail"
         $Eval = Get-RegexMatch @EvalParams
         if ($Eval) {
             Write-Verbose "$VerbosePrefix $i`: lldp output started"
