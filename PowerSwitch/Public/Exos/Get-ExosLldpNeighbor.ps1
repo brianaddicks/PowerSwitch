@@ -35,7 +35,7 @@ function Get-ExosLldpNeighbor {
 
         if ($StopWatch.Elapsed.TotalMilliseconds -ge 1000) {
             $PercentComplete = [math]::truncate($i / $TotalLines * 100)
-            Write-Progress -Activity "Reading Support Output" -Status "$PercentComplete% $i/$TotalLines" -PercentComplete $PercentComplete
+            Write-Progress -Activity "$VerbosePrefix Reading Support Output" -Status "$PercentComplete% $i/$TotalLines" -PercentComplete $PercentComplete
             $StopWatch.Reset()
             $StopWatch.Start()
         }
@@ -48,7 +48,7 @@ function Get-ExosLldpNeighbor {
         $EvalParams = @{ }
         $EvalParams.StringToEval = $entry
 
-        $EvalParams.Regex = [regex] "#\ show\ lld(p)\ neigh[bors]+\ detail"
+        $EvalParams.Regex = [regex] "#\ show\ lld(p)?\ neigh[bors]+\ detail"
         $Eval = Get-RegexMatch @EvalParams
         if ($Eval) {
             Write-Verbose "$VerbosePrefix $i`: lldp output started"

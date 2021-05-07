@@ -50,7 +50,7 @@ function Get-EosPortAlias {
         $EvalParams.StringToEval = $entry
 
         # start route table
-        $EvalParams.Regex = [regex] '^#\ port'
+        $EvalParams.Regex = [regex] '^#\ ?port'
         $Eval = Get-RegexMatch @EvalParams
         if ($Eval) {
             Write-Verbose "$VerbosePrefix $i`: port config: section started"
@@ -81,9 +81,5 @@ function Get-EosPortAlias {
         }
     }
 
-    if ($ReturnArray.Count -eq 0) {
-        Throw "$VerbosePrefix No Route Table found, requires output from 'show ip route'"
-    } else {
-        return $ReturnArray
-    }
+    $ReturnArray
 }

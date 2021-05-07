@@ -25,6 +25,7 @@ function Get-EosHostConfig {
     $ReturnObjectProps = @()
     $ReturnObjectProps += "MgmtInterface"
     $ReturnObjectProps += "IpAddress"
+    $ReturnObjectProps += "DefaultGateway"
     $ReturnObjectProps += "Name"
     $ReturnObjectProps += "Prompt"
     $ReturnObjectProps += "Location"
@@ -115,6 +116,7 @@ function Get-EosHostConfig {
         $Eval = Get-RegexMatch @EvalParams
         if ($Eval) {
             $ReturnObject.IpAddress = $Eval.Groups['ip'].Value + '/' + (ConvertTo-MaskLength $Eval.Groups['mask'].Value)
+            $ReturnObject.DefaultGateway = $Eval.Groups['gateway'].Value
             if (CheckIfFinished) { break fileloop }
             continue
         }

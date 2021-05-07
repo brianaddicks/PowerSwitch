@@ -23,7 +23,6 @@ function Get-ExosPortStatus {
 
     # Setup return Array
     $ReturnArray = @()
-    $VlanConfig = Get-ExosVlanConfig -ConfigArray $LoopArray
     $TotalLines = $LoopArray.Count
     $i = 0
     $StopWatch = [System.Diagnostics.Stopwatch]::StartNew() # used by Write-Progress so it doesn't slow the whole function down
@@ -35,7 +34,7 @@ function Get-ExosPortStatus {
 
         if ($StopWatch.Elapsed.TotalMilliseconds -ge 1000) {
             $PercentComplete = [math]::truncate($i / $TotalLines * 100)
-            Write-Progress -Activity "Reading Support Output" -Status "$PercentComplete% $i/$TotalLines" -PercentComplete $PercentComplete
+            Write-Progress -Activity "$VerbosePrefix Reading Support Output" -Status "$PercentComplete% $i/$TotalLines" -PercentComplete $PercentComplete
             $StopWatch.Reset()
             $StopWatch.Start()
         }
@@ -47,14 +46,6 @@ function Get-ExosPortStatus {
 
         $EvalParams = @{}
         $EvalParams.StringToEval = $entry
-
-        <# $EvalParams.Regex = [regex] "^=================================================================="
-        $Eval = Get-RegexMatch @EvalParams
-        if ($Eval) {
-            Write-Verbose "$VerbosePrefix $i`: Port: status started"
-            $KeepGoing = $true
-            continue
-        } #>
 
         $EvalParams.Regex = [regex] "^(?<portname>Port\s+)(?<displaystring>Display\s+)(?<vlanname>VLAN\sName\s+)(?<portstate>Port\s+)(?<linkstate>Link\s+)(?<speed>Speed\s+)(?<duplex>Duplex)"
         $Eval = Get-RegexMatch @EvalParams
@@ -118,7 +109,41 @@ function Get-ExosPortStatus {
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval -and $ReturnArray.Count -gt 0) {
                 Write-Verbose "$VerbosePrefix $i`: Port: status complete"
-                break fileloop
+                $KeepGoing = $false
+                continue
+            }
+        }
+
+        $EvalParams.Regex = [regex] "#\ show\ ports\ information\ detail"
+        $Eval = Get-RegexMatch @EvalParams
+        if ($Eval) {
+            Write-Verbose "$VerbosePrefix $i`: Port: information detail started"
+            $KeepGoingInfo = $true
+            continue
+        }
+
+        if ($KeepGoingInfo) {
+            $EvalParams.Regex = [regex] '^Port:\s+(\d+(:\d+)?)'
+            $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
+            if ($Eval) {
+                $ThisPortName = $Eval
+                $ThisPort = $ReturnArray | Where-Object { $_.Name -eq $ThisPortName }
+                continue
+            }
+
+            $EvalParams.Regex = [regex] '^\s+Type:\s+(.+)'
+            $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
+            if ($Eval) {
+                $ThisPort.Type = $Eval
+                continue
+            }
+
+            $EvalParams.Regex = [regex] '\s#\s'
+            $Eval = Get-RegexMatch @EvalParams
+            if ($Eval) {
+                Write-Verbose "$VerbosePrefix $i`: Port: information detail complete"
+                $KeepGoingInfo = $false
+                continue
             }
         }
     }

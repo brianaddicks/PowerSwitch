@@ -22,7 +22,7 @@ function Get-CiscoStaticRoute {
     }
 
     # Setup Return Object
-    $ReturnObjectProps = @()
+    $ReturnObject = @()
 
     $IpRx = [regex] "(\d+)\.(\d+)\.(\d+)\.(\d+)"
 
@@ -55,7 +55,7 @@ function Get-CiscoStaticRoute {
         # Universal Commands
 
         # ip route <network> <mask> <nexthop>
-        $EvalParams.Regex = [regex] '^ip\ route\ (?<network>.+?)\ (?<mask>.+?)\ (?<gateway>.+)'
+        $EvalParams.Regex = [regex] '^ip\ route\ (?<network>.+?)\ (?<mask>.+?)\ (?<gateway>\d+\.\d+\.\d+\.\d+)'
         $Eval = Get-RegexMatch @EvalParams
         if ($Eval) {
             $Destination = $Eval.Groups['network'].Value + '/' + (ConvertTo-MaskLength $Eval.Groups['mask'].Value)

@@ -30,8 +30,10 @@ function Get-EosVlanConfig {
     $ReturnArray[0].Name = "Default Vlan"
 
     if ($Ports) {
-        $ReturnArray[0].UntaggedPorts = ($Ports | Where-Object { $_.type -ne "other" }).Name
+        $ReturnArray[0].UntaggedPorts = ($Ports | Where-Object { $_.type -ne "other" -and $_.Name -notmatch 'Vlan' }).Name
     }
+
+    $global:test = $ReturnArray
 
     $IpRx = [regex] "(\d+)\.(\d+)\.(\d+)\.(\d+)"
 
@@ -100,10 +102,15 @@ function Get-EosVlanConfig {
             $EvalParams.Regex = [regex] "clear\ vlan\ egress\ 1\ (?<ports>.+)"
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
-                Write-Verbose "$VerbosePrefix $i`: vlan: clear egress 1"
+                <# Write-Verbose "$VerbosePrefix $i`: vlan: clear egress 1"
                 $ThesePorts = $Eval.Groups['ports'].Value
                 $ThesePorts = Resolve-PortString -PortString $ThesePorts -SwitchType 'Eos'
-                Write-Verbose "$VerbosePrefix $i`: vlan: $($LookupPorts.Count) ports to be cleared"
+                $VlanLookup = $ReturnArray | Where-Object { $_.Id -eq 1 }
+                foreach ($port in $ThesePorts) {
+                    $VlanLookup.UntaggedPorts = $Vlan.UntaggedPorts | Where-Object { $_ -ne $port }
+                } #>
+
+                <# Write-Verbose "$VerbosePrefix $i`: vlan: $($LookupPorts.Count) ports to be cleared"
                 $LookupPorts = $Ports | Where-Object { $ThesePorts -contains $_.Name }
                 Write-Verbose "$VerbosePrefix $i`: vlan: $($LookupPorts.Count) ports"
                 foreach ($p in $LookupPorts) {
@@ -113,11 +120,11 @@ function Get-EosVlanConfig {
                     if ($p.TaggedVlan -contains 1) {
                         $p.TaggedVlan = $P.TaggedVlan | Where-Object { $_ -ne 1 }
                     }
-                }
+                } #>
             }
 
             # vlan egress
-            $EvalParams.Regex = [regex] "set\ vlan\ egress\ (?<id>\d+)\ (?<ports>.+?)\ (?<tagging>.+)"
+            $EvalParams.Regex = [regex] "^set\ vlan\ egress\ (?<id>\d+)\ (?<ports>.+?)\ (?<tagging>.+)"
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
                 $VlanId = $Eval.Groups['id'].Value

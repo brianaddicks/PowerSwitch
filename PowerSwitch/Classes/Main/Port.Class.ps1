@@ -9,15 +9,26 @@ Class Port {
 
     [string]$OperStatus
     [string]$AdminStatus
+
     [string]$Speed
-    [string]$Duplex
+    [string]$Duplex = 'half'
+
     [string]$Type
     [string]$Mode
+
     [string]$Aggregate
+    [string]$AggregateAlgorithm
+    [bool]$LacpEnabled
+
+    [string]$MirrorName
+    [string]$MirrorStatus
+    [string]$MirrorSource
+    [string]$MirrorDestination
 
     [string]$StpMode
     [bool]$BpduGuard = $false
     [bool]$NoNegotiate = $false
+    [bool]$JumboEnabled = $false
 
     [bool]$DhcpSnoopingTrust = $false
     ##################################### Initiators #####################################

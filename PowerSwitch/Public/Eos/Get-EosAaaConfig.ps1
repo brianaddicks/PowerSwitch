@@ -76,9 +76,6 @@ function Get-EosAaaConfig {
                 continue
             }
 
-        }
-
-        if ($KeepGoing) {
             #set radius server "priority" "server ip" "port" :"pre-shared key":
             $EvalParams.Regex = [regex] "^set\ radius\ server\ (?<priority>.+?)\ (?<ip>$IpRx)\ (?<port>.+)\ :(?<preshare>.+):"
             $Eval = Get-RegexMatch @EvalParams

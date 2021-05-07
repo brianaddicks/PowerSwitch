@@ -39,7 +39,7 @@ function Get-ExosIpInterface {
 
         if ($StopWatch.Elapsed.TotalMilliseconds -ge 1000) {
             $PercentComplete = [math]::truncate($i / $TotalLines * 100)
-            Write-Progress -Activity "Reading Support Output" -Status "$PercentComplete% $i/$TotalLines" -PercentComplete $PercentComplete
+            Write-Progress -Activity "$VerbosePrefix Reading Support Output" -Status "$PercentComplete% $i/$TotalLines" -PercentComplete $PercentComplete
             $StopWatch.Reset()
             $StopWatch.Start()
         }
