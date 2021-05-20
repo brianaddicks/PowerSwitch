@@ -32,7 +32,7 @@ config.json*
 *.log
 
 # Testing files
-testing.ps1
+testing-*.ps1
 
 #code coverage files
 TestResults_PS*.xml
