@@ -36,7 +36,7 @@ Task Test -Depends Init {
     $PesterConfiguration = [PesterConfiguration]::Default
     $PesterConfiguration.Run.Path = "$ProjectRoot\Tests"
     $PesterConfiguration.Should.ErrorAction = 'Stop'
-    $PesterConfiguration.CodeCoverage.Enabled = $true
+    $PesterConfiguration.CodeCoverage.Enabled = $false
     $PesterConfiguration.TestResult.OutputPath = "$ProjectRoot\$TestFile"
     $PesterConfiguration.TestResult.Enabled = $true
     $PesterConfiguration.Run.PassThru = $true
