@@ -98,16 +98,27 @@ function Get-CiscoHostConfig {
         if ($IpRoute) {
             $IpInterface = Get-CiscoIpInterface -ConfigArray $LoopArray
 
-            $DefaultRoute = $IpRoute | Where-Object { $_.Destination -eq '0.0.0.0/0' }
-            Write-Verbose "$VerbosePrefix Lookup for NextHop: $($DefaultRoute.NextHop)"
-            :interface foreach ($interface in $IpInterface) {
-                Write-Verbose "$VerbosePrefix Checking: $($interface.Name)"
-                foreach ($ip in $interface.IpAddress) {
-                    Write-Verbose "$VerbosePrefix ip: $ip"
-                    if (Test-IpInRange -ContainingNetwork $ip -IPAddress $DefaultRoute.NextHop) {
-                        $ReturnObject.IpAddress = $ip
-                        $ReturnObject.MgmtInterface = $interface.Name
-                        break interface
+            $DefaultRoute = $IpRoute | Where-Object { $_.Destination -eq '0.0.0.0/0' -and [string]::IsNullOrEmpty($_.Vrf) }
+
+            # look for just active routes
+            if ($DefaultRoute.Count -gt 1) {
+                $DefaultRoute = $DefaultRoute | Where-Object { $_.Active }
+            }
+
+            if ($DefaultRoute.Count -ne 1) {
+                # if still can't determine default route, skip this part
+                $DefaultRoute = $DefaultRoute | Where-Object { $_.Active }
+            } else {
+                Write-Verbose "$VerbosePrefix Lookup for NextHop: $($DefaultRoute.NextHop)"
+                :interface foreach ($interface in $IpInterface) {
+                    Write-Verbose "$VerbosePrefix Checking: $($interface.Name)"
+                    foreach ($ip in $interface.IpAddress) {
+                        Write-Verbose "$VerbosePrefix ip: $ip"
+                        if (Test-IpInRange -ContainingNetwork $ip -IPAddress $DefaultRoute.NextHop) {
+                            $ReturnObject.IpAddress = $ip
+                            $ReturnObject.MgmtInterface = $interface.Name
+                            break interface
+                        }
                     }
                 }
             }

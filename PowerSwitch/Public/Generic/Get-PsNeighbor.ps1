@@ -1,4 +1,4 @@
-function Get-PsInventory {
+function Get-PsNeighbor {
     [CmdletBinding(DefaultParametersetName = "path")]
 
     Param (
@@ -9,12 +9,12 @@ function Get-PsInventory {
         [array]$ConfigArray,
 
         [Parameter(Mandatory = $True, Position = 1)]
-        [ValidateSet('ExtremeEos','Cisco')]
+        [ValidateSet('Cisco')]
         [string]$PsSwitchType
     )
 
     # It's nice to be able to see what cmdlet is throwing output isn't it?
-    $VerbosePrefix = "Get-PsInventory:"
+    $VerbosePrefix = "Get-PsNeighbor:"
 
     # Check for path and import
     if ($ConfigPath) {
@@ -25,13 +25,12 @@ function Get-PsInventory {
         $LoopArray = $ConfigArray
     }
 
+    $ReturnObject = @()
+
     # Get the switch type
     switch ($PsSwitchType) {
-        'ExtremeEos' {
-            $ReturnObject = Get-EosInventory -ConfigArray $LoopArray
-        }
         'Cisco' {
-            $ReturnObject += Get-CiscoInventory -ConfigArray $LoopArray
+            $ReturnObject += Get-CiscoCdpNeighbor -ConfigArray $LoopArray
         }
         default {
             Throw "$VerbosePrefix SwitchType not handled '$PsSwitchType'"

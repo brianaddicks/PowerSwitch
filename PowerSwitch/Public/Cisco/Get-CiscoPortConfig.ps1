@@ -11,6 +11,7 @@ function Get-CiscoPortConfig {
 
     # It's nice to be able to see what cmdlet is throwing output isn't it?
     $VerbosePrefix = "Get-CiscoPortConfig:"
+    Write-Verbose 'RUNNING'
 
     # Check for path and import
     if ($ConfigPath) {
@@ -30,6 +31,8 @@ function Get-CiscoPortConfig {
     $TotalLines = $LoopArray.Count
     $i = 0
     $StopWatch = [System.Diagnostics.Stopwatch]::StartNew() # used by Write-Progress so it doesn't slow the whole function down
+
+    Write-Verbose "RUNNING $($LoopArray.Count)"
 
     :fileloop foreach ($entry in $LoopArray) {
         $i++

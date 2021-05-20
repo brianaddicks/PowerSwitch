@@ -21,7 +21,7 @@
     GUID              = '66545a45-bf57-4fba-8ddc-0c387692154b'
 
     # Author of this module
-    Author            = 'brian.addicks@lockstepgroup.com'
+    Author            = 'Brian Addicks, Narek Muragian'
 
     # Company or vendor of this module
     CompanyName       = 'Lockstep Technology Group'

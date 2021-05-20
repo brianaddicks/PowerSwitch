@@ -21,6 +21,7 @@ function Get-CiscoVlanConfig {
         $LoopArray = $ConfigArray
     }
 
+    $PortConfig = Get-CiscoPortConfig -ConfigArray $LoopArray
     # Setup return Array
     $ReturnArray = @()
 
@@ -53,7 +54,7 @@ function Get-CiscoVlanConfig {
         ###########################################################################################
         # Check for the Section
 
-        $Regex = [regex] '^-+\ show\ vlan\ -+$'
+        $Regex = [regex] '\w+\#show\ vlan'
         $Match = Get-RegexMatch $Regex $entry
         if ($Match) {
             Write-Verbose "$VerbosePrefix $i`: 'show vlan' found"
@@ -76,7 +77,7 @@ function Get-CiscoVlanConfig {
             $EvalParams.StringToEval = $entry
 
             # vlan id, name, status
-            $EvalParams.Regex = [regex] "^(?<id>\d+)\s+(?<name>[^\ ]+?)\s+(?<status>[^\ ]+?)\s+"
+            $EvalParams.Regex = [regex] "(?<id>\d+)\s+(?<name>[^\ ]+?)\s+(?<status>[^\ ]+?)\s+"
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
                 $Slot++
@@ -85,20 +86,31 @@ function Get-CiscoVlanConfig {
                 $new = [Vlan]::new($VlanId)
                 $new.Name = $Eval.Groups['name'].Value
 
-                if ($Eval.Groups['status'].Value -match 'act') {
-                    $new.Enabled = $true
-                }
-
                 $ReturnArray += $new
-            }
-
-            # firmware version
-            $EvalParams.Regex = [regex] "^\s+?Fw:(\ )?(?<fw>[\d\.]+)"
-            $Eval = Get-RegexMatch @EvalParams
-            if ($Eval) {
-                $new.Firmware = $Eval.Groups['fw'].Value
             }
         }
     }
+
+    foreach ($port in $PortConfig) {
+        $UntaggedVlanLookup = $ReturnArray | Where-Object { $_.Id -eq $port.UntaggedVlan }
+        $UntaggedVlanLookup.UntaggedPorts += $port.Name
+
+        if ($port.VoiceVlan -gt 0) {
+            $VoiceVlanLookup = $ReturnArray | Where-Object { $_.Id -eq $port.VoiceVlan }
+            $VoiceVlanLookup.TaggedPorts += $port.Name
+        }
+
+        if ($port.TaggedVlan.Count -gt 1) {
+            $TaggedVlanLookup = $ReturnArray | Where-Object { $_.Id -eq $port.TaggedVlan }
+            $TaggedVlanLookup.TaggedPorts += $port.Name
+        }
+
+        if ($port.TaggedVlan.Count -eq 0 -and $port.Mode -eq 'trunk') {
+            foreach ($vlan in $ReturnArray) {
+                $vlan.TaggedPorts += $port.Name
+            }
+        }
+    }
+
     return $ReturnArray
 }

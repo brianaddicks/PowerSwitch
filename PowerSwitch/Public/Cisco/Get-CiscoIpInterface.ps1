@@ -54,7 +54,7 @@ function Get-CiscoIpInterface {
 
         $EvalParams = @{}
         $EvalParams.StringToEval = $entry
-        $EvalParams.Regex = [regex] "^interface\ (?<type>Vlan|Loopback)(?<value>.+)"
+        $EvalParams.Regex = [regex] "^interface\ (?<type>Vlan|Loopback|[^\d]+)(?<value>.+)"
         $Eval = Get-RegexMatch @EvalParams
         if ($Eval) {
             Write-Verbose "$VerbosePrefix $i`: interface found: $Eval"
@@ -118,5 +118,9 @@ function Get-CiscoIpInterface {
             }
         }
     }
+
+    # remove interfaces with no Ip Address
+    $ReturnArray = $ReturnArray | Where-Object { $_.IpAddress.Count -ge 1 }
+
     return $ReturnArray
 }

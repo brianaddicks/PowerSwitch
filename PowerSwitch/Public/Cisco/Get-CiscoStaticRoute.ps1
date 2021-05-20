@@ -55,7 +55,7 @@ function Get-CiscoStaticRoute {
         # Universal Commands
 
         # ip route <network> <mask> <nexthop>
-        $EvalParams.Regex = [regex] '^ip\ route\ (?<network>.+?)\ (?<mask>.+?)\ (?<gateway>\d+\.\d+\.\d+\.\d+)'
+        $EvalParams.Regex = [regex] "^ip\ route(\ vrf\ (?<vrf>[^\s]+?))?\ (?<network>$IpRx)\ (?<mask>$IpRx)\ (?<gateway>$IpRx)"
         $Eval = Get-RegexMatch @EvalParams
         if ($Eval) {
             $Destination = $Eval.Groups['network'].Value + '/' + (ConvertTo-MaskLength $Eval.Groups['mask'].Value)
@@ -63,6 +63,9 @@ function Get-CiscoStaticRoute {
             $new = [IpRoute]::new()
             $new.Destination = $Destination
             $new.NextHop = $Eval.Groups['gateway'].Value
+            if ($Eval.Groups['vrf'].Success) {
+                $new.Vrf = $Eval.Groups['vrf'].Value
+            }
             $new.Type = 'static'
 
             Write-Verbose "$VerbosePrefix IpRoute Found: $($new.Destination)"
@@ -86,7 +89,29 @@ function Get-CiscoStaticRoute {
             $ReturnObject += $new
             continue
         }
+
+        # Default gateway is <ip>
+        $EvalParams.Regex = [regex] "^(Gateway\ of\ last\ resort|Default\ gateway)\ is\ (?<hop>$IpRx)"
+        $Eval = Get-RegexMatch @EvalParams
+        if ($Eval) {
+            $RouteLookup = $ReturnObject | Where-Object { $_.Destination -eq '0.0.0.0/0' -and $_.NextHop -eq $Eval }
+            if ($RouteLookup.Count -gt 0) {
+                foreach ($route in $RouteLookup) {
+                    $route.Active = $true
+                }
+            } else {
+                $new = [IpRoute]::new()
+                $new.Destination = '0.0.0.0/0'
+                $new.NextHop = $Eval.Groups['hop'].Value
+                $new.Active = $true
+                $ReturnObject += $new
+            }
+            continue
+        }
     }
+
+    # remove dupes, put this in to account for "ip default-gateway" conflicting with a normal static route
+    $ReturnObject = $ReturnObject | Select-Object * -Unique
 
     return $ReturnObject
 }
