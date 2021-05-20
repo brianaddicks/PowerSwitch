@@ -24,6 +24,7 @@ function Get-CiscoPortConfig {
 
     # Setup return Array
     $ReturnArray = @()
+    $VlanConfig = Get-CiscoVlanConfig -ConfigArray $LoopArray -NoPortConfig
 
     $IpRx = [regex] "(\d+)\.(\d+)\.(\d+)\.(\d+)"
     $Slot = 0
@@ -88,7 +89,7 @@ function Get-CiscoPortConfig {
             $EvalParams.Regex = [regex] "^\ +switchport\ trunk\ allowed\ vlan\ (.+)"
             $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
             if ($Eval) {
-                $new.TaggedVlan = $Eval.Split(',')
+                $new.TaggedVlan = Resolve-VlanString -VlanString $Eval -SwitchType Cisco
                 continue
             }
 
@@ -174,5 +175,16 @@ function Get-CiscoPortConfig {
             }
         }
     }
+
+    foreach ($port in $ReturnArray) {
+        if ($port.VoiceVlan -gt 0) {
+            $port.TaggedVlan += $port.VoiceVlan
+        }
+
+        if ($port.Mode -eq 'trunk' -and $port.TaggedVlan.Count -eq 0) {
+            $port.TaggedVlan = $VlanConfig.Id
+        }
+    }
+
     return $ReturnArray
 }

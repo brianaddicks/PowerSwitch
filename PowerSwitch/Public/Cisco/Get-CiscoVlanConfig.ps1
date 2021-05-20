@@ -6,7 +6,10 @@ function Get-CiscoVlanConfig {
         [string]$ConfigPath,
 
         [Parameter(Mandatory = $True, Position = 0, ParameterSetName = 'array')]
-        [array]$ConfigArray
+        [array]$ConfigArray,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$NoPortConfig
     )
 
     # It's nice to be able to see what cmdlet is throwing output isn't it?
@@ -21,7 +24,9 @@ function Get-CiscoVlanConfig {
         $LoopArray = $ConfigArray
     }
 
-    $PortConfig = Get-CiscoPortConfig -ConfigArray $LoopArray
+    if (-not $NoPortConfig) {
+        $PortConfig = Get-CiscoPortConfig -ConfigArray $LoopArray
+    }
     # Setup return Array
     $ReturnArray = @()
 
@@ -91,23 +96,25 @@ function Get-CiscoVlanConfig {
         }
     }
 
-    foreach ($port in $PortConfig) {
-        $UntaggedVlanLookup = $ReturnArray | Where-Object { $_.Id -eq $port.UntaggedVlan }
-        $UntaggedVlanLookup.UntaggedPorts += $port.Name
+    if (-not $NoPortConfig) {
+        foreach ($port in $PortConfig) {
+            $UntaggedVlanLookup = $ReturnArray | Where-Object { $_.Id -eq $port.UntaggedVlan }
+            $UntaggedVlanLookup.UntaggedPorts += $port.Name
 
-        if ($port.VoiceVlan -gt 0) {
-            $VoiceVlanLookup = $ReturnArray | Where-Object { $_.Id -eq $port.VoiceVlan }
-            $VoiceVlanLookup.TaggedPorts += $port.Name
-        }
+            if ($port.VoiceVlan -gt 0) {
+                $VoiceVlanLookup = $ReturnArray | Where-Object { $_.Id -eq $port.VoiceVlan }
+                $VoiceVlanLookup.TaggedPorts += $port.Name
+            }
 
-        if ($port.TaggedVlan.Count -gt 1) {
-            $TaggedVlanLookup = $ReturnArray | Where-Object { $_.Id -eq $port.TaggedVlan }
-            $TaggedVlanLookup.TaggedPorts += $port.Name
-        }
+            if ($port.TaggedVlan.Count -gt 1) {
+                $TaggedVlanLookup = $ReturnArray | Where-Object { $_.Id -eq $port.TaggedVlan }
+                $TaggedVlanLookup.TaggedPorts += $port.Name
+            }
 
-        if ($port.TaggedVlan.Count -eq 0 -and $port.Mode -eq 'trunk') {
-            foreach ($vlan in $ReturnArray) {
-                $vlan.TaggedPorts += $port.Name
+            if ($port.TaggedVlan.Count -eq 0 -and $port.Mode -eq 'trunk') {
+                foreach ($vlan in $ReturnArray) {
+                    $vlan.TaggedPorts += $port.Name
+                }
             }
         }
     }

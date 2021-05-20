@@ -9,7 +9,7 @@ function Resolve-ShortPortString {
         [string]$SwitchType
     )
 
-    $VerbosePrefix = "Resolve-PortString: "
+    $VerbosePrefix = "Resolve-ShortPortString: "
 
     $ReturnObject = ""
     switch ($SwitchType) {
