@@ -85,6 +85,7 @@ function Get-CiscoPortConfig {
             }
             $new = [Port]::new($Eval)
             $new.Mode = 'access'
+            $new.AdminStatus = 'up'
             $ReturnArray += $new
             $KeepGoing = $true
             continue

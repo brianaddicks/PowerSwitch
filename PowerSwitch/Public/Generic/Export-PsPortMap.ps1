@@ -5,8 +5,14 @@ function Export-PsPortMap {
         [Parameter(Mandatory = $True, Position = 0)]
         [string]$Path,
 
-        [Parameter(Mandatory = $True, ValueFromPipeline = $True)]
-        [Port[]]$Port = @($Port)
+        [Parameter(Mandatory = $True)]
+        [Port[]]$PortConfig,
+
+        [Parameter(Mandatory = $false)]
+        [Port[]]$PortStatus,
+
+        [Parameter(Mandatory = $false)]
+        [string]$DeviceName
     )
 
     Begin {
@@ -27,16 +33,33 @@ function Export-PsPortMap {
             $OutputPath = Join-Path -Path (Resolve-Path -Path $SplitPath) -ChildPath $SplitPathLeaf
         }
 
-        $Output = $Port | Select-Object `
-            Device,
+        # add port status to port config
+        foreach ($port in $PortStatus) {
+            $ResolvedPortName = Resolve-CiscoPortName -PortName $port.Name
+            $ConfigLookup = $PortConfig | Where-Object { $_.Name -eq $ResolvedPortName }
+            $ConfigLookup.OperStatus = $port.OperStatus
+            $ConfigLookup.Speed = $port.Speed
+            $ConfigLookup.Duplex = $port.Duplex
+            $ConfigLookup.Type = $port.Type
+        }
+
+        $Output = $PortConfig | Select-Object `
+            @{ Name = 'Device'; Expression = { $DeviceName } },
             @{ Name = "PortName"; Expression = { $_.Name } },
             NewDevice,
             NewPortName,
+            Aggregate,
+            OperStatus,
+            AdminStatus,
+            Speed,
+            Duplex,
+            NoNegotiate,
+            Type,
             Alias,
             UntaggedVlan,
             VoiceVlan,
             @{ Name = "TaggedVlan"; Expression = { $_.TaggedVlan | Resolve-VlanString } }
 
-        $Output | Export-Excel -Path $OutputPath -NoNumberConversion * -AutoSize
+        $Output | Export-Excel -Path $OutputPath -NoNumberConversion * -AutoSize -ClearSheet -FreezeTopRow
     }
 }
