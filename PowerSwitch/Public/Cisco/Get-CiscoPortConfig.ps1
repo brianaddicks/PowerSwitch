@@ -33,6 +33,25 @@ function Get-CiscoPortConfig {
     $i = 0
     $StopWatch = [System.Diagnostics.Stopwatch]::StartNew() # used by Write-Progress so it doesn't slow the whole function down
 
+    # ignored lines
+    $IgnoredRegex = @(
+        '^\s+switchport$'
+        '^\s+wrr-queue.+'
+        '^\s+rcv-queue'
+        '^\s+ip\s.+'
+        '^\s+udld.+'
+        '^\s+no\sip\saddress'
+        '^\s+switchport\strunk\sencapsulation'
+        '^\s+delay\s\d+'
+        '^\s+priority-queue.+'
+        '^\s+mls\sqos'
+        '^\s+macro\sdescription'
+        '^\s+auto\sqos'
+        '^\s+bandwidth\s\d+'
+        '^\s+load-interval'
+        '^\s+switchport\sport-security.*'
+    )
+
     Write-Verbose "RUNNING $($LoopArray.Count)"
 
     :fileloop foreach ($entry in $LoopArray) {
@@ -48,9 +67,6 @@ function Get-CiscoPortConfig {
         }
 
         if ($entry -eq "") {
-            if ($InModule) {
-                break
-            }
             continue
         }
 
@@ -59,6 +75,7 @@ function Get-CiscoPortConfig {
 
         $EvalParams = @{}
         $EvalParams.StringToEval = $entry
+
         $EvalParams.Regex = [regex] "^interface\ (.+)"
         $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
         if ($Eval) {
@@ -150,6 +167,17 @@ function Get-CiscoPortConfig {
                 continue
             }
 
+            # mtu
+            $EvalParams.Regex = [regex] "^\ +mtu\ (\d+)"
+            $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
+            if ($Eval) {
+                $new.Mtu = $Eval
+                if ([int]$Eval -ge 9000) {
+                    $New.JumboEnabled = $true
+                }
+                continue
+            }
+
             # ip dhcp snooping trust
             $EvalParams.Regex = [regex] "^\ +ip\ dhcp\ snooping\ trust"
             $Eval = Get-RegexMatch @EvalParams
@@ -158,11 +186,43 @@ function Get-CiscoPortConfig {
                 continue
             }
 
+            # switchport nonegotiate
+            $EvalParams.Regex = [regex] "^\ +switchport\ nonegotiate"
+            $Eval = Get-RegexMatch @EvalParams
+            if ($Eval) {
+                $new.NoNegotiate = $true
+                continue
+            }
+
+            # speed 100
+            $EvalParams.Regex = [regex] "^\ +speed\ (\d+)"
+            $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
+            if ($Eval) {
+                $new.Speed = $Eval
+                continue
+            }
+
+            # duplex full
+            $EvalParams.Regex = [regex] "^\ +duplex\ (.+)"
+            $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
+            if ($Eval) {
+                $new.Duplex = $Eval
+                continue
+            }
+
+            # power inline never
+            $EvalParams.Regex = [regex] "^\ +power inline never"
+            $Eval = Get-RegexMatch @EvalParams
+            if ($Eval) {
+                $new.PoeDisabled = $true
+                continue
+            }
+
             # shutdown
             $EvalParams.Regex = [regex] "^\ +shutdown"
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
-                $new.AdminStatus = "False"
+                $new.AdminStatus = "down"
                 continue
             }
 
@@ -173,6 +233,16 @@ function Get-CiscoPortConfig {
                 $KeepGoing = $false
                 continue
             }
+
+            foreach ($rx in $IgnoredRegex) {
+                $EvalParams.Regex = [regex] $rx
+                $Eval = Get-RegexMatch @EvalParams
+                if ($Eval) {
+                    continue fileloop
+                }
+            }
+
+            Write-Warning "$VerbosePrefix unprocessed line: $i`: '$entry'"
         }
     }
 

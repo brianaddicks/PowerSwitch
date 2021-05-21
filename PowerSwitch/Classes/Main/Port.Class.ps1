@@ -29,8 +29,10 @@ Class Port {
     [bool]$BpduGuard = $false
     [bool]$NoNegotiate = $false
     [bool]$JumboEnabled = $false
+    [bool]$PoeDisabled = $false
 
     [bool]$DhcpSnoopingTrust = $false
+    [int]$Mtu = 1500
     ##################################### Initiators #####################################
     # Initiator
 
