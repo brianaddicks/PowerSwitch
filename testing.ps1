@@ -1,15 +1,612 @@
 [CmdletBinding()]
 Param (
-    [Parameter(Mandatory = $True, Position = 0, ParameterSetName = 'path')]
+    <# [Parameter(Mandatory = $True, Position = 0, ParameterSetName = 'path')]
     [string]$ConfigPath,
 
     [Parameter(Mandatory = $True, Position = 0, ParameterSetName = 'array')]
-    [array]$ConfigArray
+    [array]$ConfigArray #>
 )
 ipmo ./PowerSwitch -Force -Verbose:$false
 
 
-$port = Get-CiscoPortConfig -ConfigPath '/Users/brianaddicks/Downloads/defcoreold' -verbose
+function Resolve-NewPortName {
+    [CmdletBinding()]
+    Param (
+        [Parameter(Mandatory = $True, Position = 0)]
+        [string]$PortName,
+
+        [Parameter(Mandatory = $false, Position = 1)]
+        [ValidateRange(1,8)]
+        [int]$NewSlot
+    )
+
+    $EdgePortRx = [regex] 'GigabitEthernet(?<slot>\d+)(\/0)?\/(?<port>\d+)'
+    $EdgeMatch = $EdgePortRx.Match($PortName)
+    if ($EdgeMatch.Success) {
+        if ($NewSlot) {
+            $NewName = [string]$NewSlot + ':' + $EdgeMatch.Groups['port'].Value
+        } else {
+            $NewName = $EdgeMatch.Groups['slot'].Value + ':' + $EdgeMatch.Groups['port'].Value
+        }
+    } else {
+        Throw "Not an EdgePort: $PortName"
+    }
+
+    $NewName
+}
+
+
+# ---------- GCSS
+
+$SnmpContact = 'rodney.thomason@gcssk12.net'
+$NtpServers = @(
+    '10.1.90.151'
+    '10.1.90.152'
+)
+$DnsSuffixes = @(
+    'gcssk12.its'
+)
+
+$DnsServers = $NtpServers
+
+$EdgeSwitches = @(
+    '10.8.2.2'
+)
+
+$Combine = $false
+
+$IgnoredVlanIds = @(
+    1
+    1002
+    1003
+    1004
+    1005
+)
+
+
+$InDir = '/Users/brianaddicks/Lockstep Technology Group/GCS - Gainesville City Schools - Documents/Projects/1083 - Switching Refresh E-Rate R2/Discovery/logs'
+$Outdir = '/Users/brianaddicks/Lockstep Technology Group/GCS - Gainesville City Schools - Documents/Projects/1083 - Switching Refresh E-Rate R2/NewConfigs'
+#$Outdir = '/Users/brianaddicks/Downloads'
+$i = 0
+
+$FullOutput = @()
+$Header = @()
+$VlanCreate = @()
+
+$VlanConfig = @()
+$PortConfig = @()
+$PortStatus = @()
+$Inventory = @()
+$PoeModule = @()
+#$SwitchSlots = $Inventory | Where-Object { $_.Slot -match '^\d+$' } | Select-Object Slot,Model -Unique
+#$HostConfig = Get-CiscoHostConfig -ConfigArray $ConfigArray
+
+$SingleSwitchPortRx = [regex] '^(?<type>Gi(gabitEthernet)?)0\/(?<port>\d+)'
+
+if ($Combine) {
+    foreach ($ThisSwitch in $EdgeSwitches) {
+        $i++
+
+        $FileLookup = Get-ChildItem -Path $InDir -Filter "*$ThisSwitch.log"
+        switch ($FileLookup.Count) {
+            1 {
+                break
+            }
+            0 {
+                Throw "No file found: $ThisSwitch"
+            }
+            default {
+                Throw "$($FileLookup.Count) files found"
+            }
+        }
+        $ConfigArray = gc $FileLookup
+
+        # VlanConfig
+        $ThisVlanConfig = Get-CiscoVlanConfig -ConfigArray $ConfigArray
+        foreach ($vlan in $ThisVlanConfig) {
+            if ($IgnoredVlanIds -contains $vlan.Id) {
+                continue
+            } else {
+                $NewVlanConfig = $VlanConfig | Where-Object { $_.Id -eq $vlan.Id}
+                if (-not $NewVlanConfig) {
+                    $NewVlanConfig = New-PsVlanConfig -VlanId $vlan.Id
+                    $NewVlanConfig.Name = $vlan.Name
+                    $VlanConfig += $NewVlanConfig
+                }
+                # update port numbers
+                foreach ($port in $vlan.UntaggedPorts) {
+                    $SingleSwitchPortMatch = $SingleSwitchPortRx.Match($port)
+                    if ($SingleSwitchPortMatch.Success) {
+                        $NewPort = $SingleSwitchPortMatch.Groups['type'].Value + [string]$i + '/0/' + $SingleSwitchPortMatch.Groups['port'].Value
+                        $NewVlanConfig.UntaggedPorts += $NewPort
+                    } else {
+                        Write-Warning "Could not match port: $port"
+                    }
+                }
+
+                foreach ($port in $vlan.TaggedPorts) {
+                    $SingleSwitchPortMatch = $SingleSwitchPortRx.Match($port)
+                    if ($SingleSwitchPortMatch.Success) {
+                        $NewPort = $SingleSwitchPortMatch.Groups['type'].Value + [string]$i + '/0/' + $SingleSwitchPortMatch.Groups['port'].Value
+                        $NewVlanConfig.TaggedPorts += $NewPort
+                    } else {
+                        Write-Warning "Could not match port: $port"
+                    }
+                }
+            }
+        }
+
+        # PortConfig
+        $ThisPortConfig = Get-CiscoPortConfig -ConfigArray $ConfigArray
+        foreach ($port in $ThisPortConfig) {
+            $SingleSwitchPortMatch = $SingleSwitchPortRx.Match($port.Name)
+            if ($SingleSwitchPortMatch.Success) {
+                $NewPortName = $SingleSwitchPortMatch.Groups['type'].Value + [string]$i + '/0/' + $SingleSwitchPortMatch.Groups['port'].Value
+                $port.Name = $NewPortName
+                $PortConfig += $port
+            } else {
+                Write-Warning "Could not match port: $($port.Name)"
+            }
+        }
+
+        # PortStatus
+        $ThisPortStatus = Get-CiscoPortStatus -ConfigArray $ConfigArray
+        foreach ($port in $ThisPortStatus) {
+            $SingleSwitchPortMatch = $SingleSwitchPortRx.Match($port.Name)
+            if ($SingleSwitchPortMatch.Success) {
+                $NewPortName = $SingleSwitchPortMatch.Groups['type'].Value + [string]$i + '/0/' + $SingleSwitchPortMatch.Groups['port'].Value
+                $port.Name = $NewPortName
+                $PortStatus += $port
+            } else {
+                Write-Warning "Could not match port: $($port.Name)"
+            }
+        }
+
+        # Inventory
+        $ThisInventory = Get-CiscoInventory -ConfigArray $ConfigArray | Where-Object { $_.Slot -match '^\d+$' }
+        if ($ThisInventory.Count -eq 1) {
+            $ThisInventory.Slot = $i
+
+            $Inventory += $ThisInventory
+        } else {
+            Write-Warning "Inventory is greater than 1: $ThisSwitch`: $($ThisInventory.Count)"
+            return
+        }
+
+        $ThisPoeModule = Get-CiscoPoeModule -ConfigArray $ConfigArray
+        if ($ThisPoeModule.Count -eq 1) {
+            $PoeModule += $i
+        }
+
+        if ($i -eq 1 ) {
+            $HostConfig = Get-CiscoHostConfig -ConfigArray $ConfigArray
+            $BaseName = $FileLookup.BaseName
+            $StaticRoute = Get-CiscoStaticRoute -ConfigArray $ConfigArray
+            $DefaultRoute = $StaticRoute | Where-Object { $_.Destination -eq '0.0.0.0/0' }
+            $IpInterface = Get-CiscoIpInterface -ConfigArray $ConfigArray
+            $MgmtIpInterface = $IpInterface | Where-Object { Test-IpInRange -ContainingNetwork $_.IpAddress[0] -IPAddress ($HostConfig.IpAddress -replace '\/\d+') }
+            $OutputFile = (Join-Path -Path $Outdir -ChildPath $($FileLookup.Name))
+        }
+        <#
+        $SwitchSlots = $Inventory | Where-Object { $_.Slot -match '^\d+$' } | Select-Object Slot,Model -Unique
+        $HostConfig = Get-CiscoHostConfig -ConfigArray $ConfigArray #>
+    }
+}
+
+if ($Combine) {
+    $EdgeSwitches = $EdgeSwitches[0]
+}
+
+$i = 0
+foreach ($ThisSwitch in $EdgeSwitches) {
+    $i++
+    "$i/$($EdgeSwitches.Count)"
+
+    $FullOutput = @()
+
+    if (-not $Combine) {
+        $FileLookup = Get-ChildItem -Path $InDir -Filter "*$ThisSwitch.log"
+        switch ($FileLookup.Count) {
+            1 {
+                break
+            }
+            0 {
+                Throw "No file found"
+            }
+            default {
+                Throw "$($FileLookup.Count) files found"
+            }
+        }
+
+        $OutputFile = (Join-Path -Path $Outdir -ChildPath $($FileLookup.Name))
+        if (Test-Path -Path $OutputFile) {
+            "Output complete, skipping $ThisSwitch"
+            #continue
+        }
+
+        $ConfigArray = gc $FileLookup
+        $BaseName = $FileLookup.BaseName
+        $VlanConfig = Get-CiscoVlanConfig -ConfigArray $ConfigArray
+        $PortConfig = Get-CiscoPortConfig -ConfigArray $ConfigArray
+        $PortStatus = Get-CiscoPortStatus -ConfigArray $ConfigArray
+        $Inventory = Get-CiscoInventory -ConfigArray $ConfigArray
+        $PoeModule = Get-CiscoPoeModule -ConfigArray $ConfigArray
+        $HostConfig = Get-CiscoHostConfig -ConfigArray $ConfigArray
+        $StaticRoute = Get-CiscoStaticRoute -ConfigArray $ConfigArray
+        $DefaultRoute = $StaticRoute | Where-Object { $_.Destination -eq '0.0.0.0/0' }
+        $IpInterface = Get-CiscoIpInterface -ConfigArray $ConfigArray
+        $MgmtIpInterface = $IpInterface | Where-Object { Test-IpInRange -ContainingNetwork $_.IpAddress[0] -IPAddress ($HostConfig.IpAddress -replace '\/\d+') }
+    }
+    $SwitchSlots = $Inventory | Where-Object { $_.Slot -match '^\d+$' } | Select-Object Slot,Model -Unique
+
+    foreach ($slot in $SwitchSlots) {
+        $ThisOutput = '# ' + $slot.Slot + ' ' + $slot.Model
+        if ($PoeModule -contains $slot.Slot) {
+            $ThisOutput += ' !!!! POE !!!!'
+        }
+        $FullOutput += $ThisOutput
+    }
+
+    #Export-PsPortMap -Path (Join-Path -Path $Outdir -ChildPath "$BaseName`.xlsx") -PortConfig $PortConfig -DeviceName $BaseName -PortStatus $PortStatus
+
+    #region sanitizeVlans
+    #################################################################################
+
+    $ValidVlans = $VlanConfig | Where-Object { $IgnoredVlanIds -notcontains $_.Id }
+    foreach ($vlan in $ValidVlans) {
+        $vlanName = ($vlan.Name -replace "\.","").ToLower()
+        $vlanName = ($vlanName -replace "\/","-").ToLower()
+        if ($vlanName -eq 'security') {
+            $vlanName = 'security-vlan'
+        }
+        if ($vlanName -eq 'mgmt') {
+            $vlanName = 'device-mgmt'
+        }
+        $vlan.Name = $vlanName
+    }
+
+    #################################################################################
+    #region sanitizeVlans
+
+    #region getImportantVlans
+    #################################################################################
+
+    $VoiceVlanId = $PortConfig.VoiceVlan | Where-Object { $_ -ne 0 } | Select-Object -Unique
+    $VoiceVlan = $ValidVlans | Where-Object { $_.Id -eq $VoiceVlanId }
+    $EdgeVlan = ($ValidVlans | Select-Object Name,@{ Name = 'UntaggedCount';Expression = { $_.UntaggedPorts.Count } } | Sort-Object UntaggedCount | Select-Object -Last 1).Name
+
+    #################################################################################
+    #endregion getImportantVlans
+
+    #region translatePorts
+    #################################################################################
+
+    if ($SwitchSlots.Count -eq 1) {
+        $EdgePortRx = [regex] 'GigabitEthernet(?<slot>\d+)(\/0)?\/(?<port>\d+)'
+    } else {
+        $EdgePortRx = [regex] 'GigabitEthernet(?<slot>\d+)\/0\/(?<port>\d+)'
+    }
+    $EdgePorts = $PortConfig | Where-Object { $_.Name -match $EdgePortRx }
+
+    if (-not $EdgePorts.Count) {
+        Throw "No edge ports found"
+    }
+
+    foreach ($vlan in $ValidVlans) {
+        $NewPortList = @()
+        foreach ($port in $vlan.Untaggedports) {
+            $EdgePortMatch = $EdgePortRx.Match($port)
+            if ($EdgePortMatch.Success) {
+                $NewPortName = $EdgePortMatch.Groups['slot'].Value + ':' + $EdgePortMatch.Groups['port'].Value
+                $NewPortName = Resolve-NewPortName $port
+                $NewPortList += $NewPortName
+            }
+        }
+        $vlan.UntaggedPorts = $NewPortList
+
+        $NewPortList = @()
+        foreach ($port in $vlan.Taggedports) {
+            $EdgePortMatch = $EdgePortRx.Match($port)
+            if ($EdgePortMatch.Success) {
+                $NewPortName = $EdgePortMatch.Groups['slot'].Value + ':' + $EdgePortMatch.Groups['port'].Value
+                $NewPortName = Resolve-NewPortName $port
+                $NewPortList += $NewPortName
+            }
+        }
+        $vlan.TaggedPorts = $NewPortList
+    }
+
+    #################################################################################
+    #endregion translatePorts
+
+
+    $FullOutput += ''
+    $FullOutput += '# default port config'
+
+    #region defaultPort
+    #################################################################################
+
+    $FullOutput += 'disable cli prompting'
+    $FullOutput += 'enable jumbo-frame ports all'
+    $FullOutput += 'configure vlan default delete ports all'
+
+    foreach ($slot in $SwitchSlots) {
+        $FullOutput += 'configure vr VR-Default delete ports ' + $slot.Slot + ':1-54'
+    }
+
+
+    #################################################################################
+    #endregion defaultPort
+
+    #region createVlan
+    #################################################################################
+
+    $FullOutput += ''
+    $FullOutput += '# create vlans, enable stp'
+
+    foreach ($vlan in $ValidVlans) {
+        $FullOutput += "create vlan """ + $vlan.Name + """ tag " + $vlan.Id
+        $FullOutput += "enable stpd s0 auto-bind vlan " + $vlan.Name
+    }
+
+    #################################################################################
+    #endregion createVlan
+
+    #region configure port vlans
+    #################################################################################
+
+    $FullOutput += ''
+    $FullOutput += '# port vlan assignment'
+
+    # set all edge ports
+    foreach ($slot in $SwitchSlots) {
+        $FullOutput += 'configure vlan ' + $EdgeVlan + ' add port ' + $slot.Slot + ':1-48 untagged'
+        if ($VoiceVlan.Count -eq 1) {
+            $FullOutput += 'configure vlan ' + $VoiceVlan.Name + ' add port ' + $slot.Slot + ':1-48 tagged'
+        } elseif ($VoiceVlan.Count -gt 1) {
+            Throw "$($FileLookup.BaseName): $($VoiceVlan.Count) voice vlans detected"
+        }
+    }
+
+    $FullOutput += ''
+    foreach ($vlan in $ValidVlans) {
+        if ($vlan.UntaggedPorts.Count -gt 0) {
+            $UntaggedPortString = Resolve-ShortPortString $vlan.UntaggedPorts -SwitchType exos
+            $FullOutput += 'configure vlan ' + $vlan.Name + ' add port ' + $UntaggedPortString + ' untagged'
+        }
+
+        if ($vlan.TaggedPorts.Count -gt 0) {
+            $TaggedPortString = Resolve-ShortPortString $vlan.TaggedPorts -SwitchType exos
+            $FullOutput += 'configure vlan ' + $vlan.Name + ' add port ' + $TaggedPortString + ' tagged'
+        }
+    }
+
+    #################################################################################
+    #endregion createVlan
+
+    #region uplink
+    #################################################################################
+
+    if ($SwitchSlots.Count -ge 2) {
+        $UplinkGrouping = '1:49,2:49'
+    } else {
+        $UplinkGrouping = '1:49,1:50'
+    }
+
+    $FullOutput += ''
+    $FullOutput += '# uplink config'
+    $FullOutput += 'enable sharing 1:49 grouping ' + $UplinkGrouping + ' algorithm address-based L2 lacp'
+    $FullOutput += 'configure vlan ' + ($ValidVlans.Id -join ',') + ' add port 1:49 tagged'
+    $FullOutput += 'configure port ' + $UplinkGrouping + ' display-string uplink'
+
+    #################################################################################
+    #endregion uplink
+
+    #region stpedge
+    #################################################################################
+
+    $FullOutput += ''
+    $FullOutput += '# stpedge'
+    foreach ($slot in $SwitchSlots) {
+        $FullOutput += 'configure stpd s0 ports edge-safeguard enable ' + $slot.Slot + ':1-48'
+        $FullOutput += 'configure stpd s0 ports bpdu-restrict enable ' + $slot.Slot + ':1-48'
+    }
+    $FullOutput += 'enable stpd s0'
+
+    #################################################################################
+    #endregion stpedge
+
+    #region portconfig
+    #################################################################################
+
+    $FullOutput += ''
+    $FullOutput += '# port config'
+    foreach ($port in $EdgePorts) {
+        $EdgePortMatch = $EdgePortRx.Match($port.Name)
+        $NewPortName = $EdgePortMatch.Groups['slot'].Value + ':' + $EdgePortMatch.Groups['port'].Value
+        $NewPortName = Resolve-NewPortName $port.Name
+
+        if ($port.Alias) {
+            $NewAlias = $port.Alias.ToLower()
+            $NewAlias = $NewAlias -replace ' ','-'
+            $NewAlias = $NewAlias -replace '\/','' -replace '\(','' -replace "'",''
+            if ($NewAlias.Length -gt 20) {
+                $NewAlias = $NewAlias.SubString(0,20)
+                $FullOutput += 'configure port ' + $NewPortName + ' description-string "' + $port.Alias.ToLower() + '"'
+            }
+            $FullOutput += 'configure port ' + $NewPortName + ' display-string ' + $NewAlias
+        }
+
+        if ($port.AdminStatus -ne 'up') {
+            $FullOutput += 'disable port ' + $NewPortName
+        }
+    }
+
+    #################################################################################
+    #endregion portconfig
+
+    #region dhcpsnooping
+    #################################################################################
+
+    $FullOutput += ''
+    $FullOutput += '# dhcpedge'
+    foreach ($vlan in $ValidVlans) {
+        if ($vlan.UntaggedPorts.Count -gt 0) {
+            $UntaggedPortString = Resolve-ShortPortString $vlan.UntaggedPorts -SwitchType exos
+            $FullOutput += 'enable ip-security dhcp-snooping vlan ' + $vlan.Name + ' port ' + $UntaggedPortString + ' violation-action drop-packet block-mac permanently snmp-trap'
+        }
+
+        if ($vlan.TaggedPorts.Count -gt 0) {
+            $TaggedPortString = Resolve-ShortPortString $vlan.TaggedPorts -SwitchType exos
+            $FullOutput += 'enable ip-security dhcp-snooping vlan ' + $vlan.Name + ' port ' + $TaggedPortString + ' violation-action drop-packet block-mac permanently snmp-trap'
+        }
+
+
+        #$FullOutput += "enable ip-security dhcp-snooping vlan " + $vlan.Name + " port all violation-action drop-packet block-mac permanently snmp-trap"
+    }
+    $FullOutput += 'configure trusted-ports 1:49 trust-for dhcp-server'
+
+    #################################################################################
+    #endregion dhcpsnooping
+
+    #region mgmtconfig
+    #################################################################################
+
+    $FullOutput += ''
+    $FullOutput += '# mgmt'
+    $FullOutput += 'configure snmp sysName "' + $HostConfig.Name + '"'
+    $FullOutput += 'configure snmp sysContact "' + $SnmpContact + '"'
+    $FullOutput += ''
+    $FullOutput += 'disable telnet'
+    $FullOutput += 'disable web http'
+    $FullOutput += 'enable snmp access'
+    $FullOutput += 'disable snmp access snmp-v1v2c'
+    $FullOutput += 'enable snmp access snmpv3'
+    $FullOutput += 'disable snmpv3 default-group'
+
+    #################################################################################
+    #endregion mgmtconfig
+
+    #region aaa
+    #################################################################################
+
+    $FullOutput += ''
+    $FullOutput += '# aaa'
+    $FullOutput += 'configure account admin encrypted "$5$Spzgj/$H1Z8d/6HyHEIqabM1M0GcFbdeuuPpU9vtzFPkQD4LPD"'
+    $FullOutput += 'create account admin lockstep encrypted "$5$/K0Ak/$fWxqRAAh21r9CTcm0rVwpS0RnijzvfeudQl5XBct0/1"'
+
+    #################################################################################
+    #endregion aaa
+
+
+
+
+    #region ntpdns
+    #################################################################################
+
+    foreach ($ntpServer in $NtpServers) {
+        $FullOutput += 'configure sntp-client primary ' + $ntpServer + ' vr VR-Default'
+    }
+    $FullOutput += 'enable sntp-client'
+    $FullOutput += 'configure timezone name Eastern -300 autodst'
+
+    $FullOutput += ''
+    foreach ($dnsServer in $DnsServers) {
+        $FullOutput += 'configure dns-client add name-server ' + $dnsServer + ' vr VR-Default'
+    }
+
+    foreach ($dnsSuffix in $DnsSuffixes) {
+        $FullOutput += 'configure dns-client add domain-suffix ' + $dnsSuffix
+    }
+
+    #################################################################################
+    #endregion ntpdns
+
+    #region lldpcdp
+    #################################################################################
+
+    $FullOutput += ''
+    $FullOutput += '# lldp and cdp'
+    $FullOutput += 'enable cdp ports all'
+    $FullOutput += 'configure lldp ports all advertise system-capabilities management-address'
+    $FullOutput += 'configure lldp ports all advertise vendor-specific med capabilities'
+    $FullOutput += 'configure lldp ports all advertise vendor-specific med power-via-mdi'
+
+    if ($VoiceVlan.Count -eq 1) {
+        $FullOutput += 'configure lldp port all advertise vendor-specific dot1 port-protocol-vlan-id vlan ' + $VoiceVlan.Name
+        $FullOutput += 'configure lldp port all advertise vendor-specific dot1 vlan-name vlan ' + $VoiceVlan.Name
+        $FullOutput += 'configure lldp port all advertise vendor-specific med policy application voice vlan ' + $VoiceVlan.Name + ' dscp 46'
+    } elseif ($VoiceVlan.Count -gt 1) {
+        Throw "$($FileLookup.BaseName): $($VoiceVlan.Count) voice vlans detected"
+    }
+
+    #################################################################################
+    #region lldpcdp
+
+    #region managementIp
+    ############### ##################################################################
+
+
+
+    $FullOutput += ''
+    $FullOutput += '# mgmt ip'
+
+    if ($DefaultRoute.Count -eq 1) {
+        if ($MgmtIpInterface.Count -eq 1) {
+        $FullOutput += 'configure vlan ' + $MgmtIpInterface.VlanId + ' ipaddress ' + $MgmtIpInterface.IpAddress
+        $FullOutput += 'configure iproute add default ' + $DefaultRoute.NextHop
+        } else {
+            Throw "$($MgmtIpInterface.Count) mgmt IP interfaces found"
+        }
+    } else {
+        Throw "$($DefaultRoute.Count) default routes found"
+    }
+
+    #################################################################################
+    #region managementIp
+
+    $FullOutput += 'enable ssh2'
+    $FullOutput += 'save'
+
+    $FullOutput | Out-File -FilePath $OutputFile
+}
+
+($Header + $FullOutput) | Out-File -FilePath $OutputFile
+
+<#
+$UniqueVlans = $Vlans | Select-Object Name,Id -Unique
+
+$Output = @()
+$DhcpOutput = @()
+
+$IgnoredVlans = @(
+    1
+    1002
+    1003
+    1004
+    1005
+)
+
+foreach ($vlan in $UniqueVlans) {
+    $vlanName = ($vlan.Name -replace "\.","").ToLower()
+    $vlanName = ($vlanName -replace "\/","-").ToLower()
+    if ($vlanName -eq 'security') {
+        $vlanName = 'security-vlan'
+    }
+    if ($vlanName -eq 'mgmt') {
+        $vlanName = 'device-mgmt'
+    }
+    if ($IgnoredVlans -contains $vlan.Id) {
+        continue
+    }
+    $Output += "create vlan """ + $vlanName + """ tag " + $vlan.Id
+    $Output += "enable stpd s0 auto-bind vlan " + $vlanName
+    $DhcpOutput += "enable ip-security dhcp-snooping vlan " + $vlanName + " port all violation-action drop-packet block-mac permanently snmp-trap"
+} #>
+
+#$Output
+
+<# $port = Get-CiscoPortConfig -ConfigPath '/Users/brianaddicks/Downloads/defcoreold' -verbose
 
 $NewConfig = @()
 foreach ($p in $port) {
@@ -36,7 +633,7 @@ foreach ($p in $port) {
     }
 }
 
-$NewConfig += 'configure vlan 1 delete ports all'
+$NewConfig += 'configure vlan 1 delete ports all' #>
 
 <#
 Name                    Mode   NativeVlan UntaggedVlan TaggedVlan                    VoiceVlan

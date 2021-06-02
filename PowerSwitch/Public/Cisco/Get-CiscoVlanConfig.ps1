@@ -50,8 +50,10 @@ function Get-CiscoVlanConfig {
         }
 
         if ($entry -eq "") {
-            if ($InModule) {
-                break
+            if ($KeepGoing) {
+                $ShowVlanComplete = $true
+                $OutputStarted = $false
+                $KeepGoing = $false
             }
             continue
         }
@@ -59,47 +61,98 @@ function Get-CiscoVlanConfig {
         ###########################################################################################
         # Check for the Section
 
+        $EvalParams = @{}
+        $EvalParams.StringToEval = $entry
+
         $Regex = [regex] '\w+\#show\ vlan'
         $Match = Get-RegexMatch $Regex $entry
         if ($Match) {
             Write-Verbose "$VerbosePrefix $i`: 'show vlan' found"
-            $SlotStart = $true
+            if (-not $ShowVlanComplete) {
+                $OutputStarted = $true
+            }
             continue
         }
 
-        if ($SlotStart) {
-            $Regex = [regex] '^(-+\ +)+-+$'
-            $Match = Get-RegexMatch $Regex $entry
-            if ($Match) {
-                Write-Verbose "$VerbosePrefix $i`: vlan output starting"
-                $InModule = $true
+        if ($OutputStarted) {
+            $Regex = [regex] '(?x)
+            ^(?<id>VLAN\s+?)
+            (?<name>Name\s+?)
+            (?<status>Status\s+?)
+            (?<ports>Ports)'
+            $Eval = Get-RegexMatch $Regex $entry
+            if ($Eval) {
+                Write-Verbose "$VerbosePrefix $i`: header found: $($Eval.Value)"
+                $KeepGoing = $true
+
+                $PortLength = ($Eval.Groups['id'].Value).Length
+                $NameLength = ($Eval.Groups['name'].Value).Length
+                $StatusLength = ($Eval.Groups['status'].Value).Length
+                $PortsLength = ($Eval.Groups['ports'].Value).Length
+
+                $CalculatedRxString = "(?<id>\d+)\s+?"
+                $CalculatedRxString += "(?<name>.{$NameLength})"
+                $CalculatedRxString += "(?<status>.+)"
+                #$CalculatedRxString += "(?<ports>.{$PortsLength})"
                 continue
             }
         }
 
-        if ($InModule) {
-            $EvalParams = @{}
-            $EvalParams.StringToEval = $entry
-
+        if ($KeepGoing) {
             # vlan id, name, status
-            $EvalParams.Regex = [regex] "(?<id>\d+)\s+(?<name>[^\ ]+?)\s+(?<status>[^\ ]+?)\s+"
+            $EvalParams.Regex = [regex] $CalculatedRxString
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
-                $Slot++
                 $VlanId = [int]($Eval.Groups['id'].Value)
                 Write-Verbose "$VerbosePrefix $i`: vlan found $VlanId"
                 $new = [Vlan]::new($VlanId)
-                $new.Name = $Eval.Groups['name'].Value
+                $new.Name = ($Eval.Groups['name'].Value).Trim()
 
                 $ReturnArray += $new
+                continue
             }
         }
+
+        # vlan 1111
+        $EvalParams.Regex = [regex] '^vlan\s(\d+)'
+        $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
+        if ($Eval) {
+            $VlanId = [int]$Eval
+            Write-Verbose "$VerbosePrefix $i`: config vlan found $VlanId"
+            $VlanLookup = $ReturnArray | Where-Object { $_.Id -eq $VlanId }
+            if (-not $VlanLookup) {
+                $new = [Vlan]::new($VlanId)
+
+                $VlanFromConfig = $true
+                $ReturnArray += $new
+            }
+            continue
+        }
+
+        if ($VlanFromConfig) {
+            # name <name>
+            $EvalParams.Regex = [regex] '^\sname\s(.+)'
+            $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
+            if ($Eval -and $new) {
+                $new.Name = $Eval
+                $VlanFromConfig = $false
+                continue
+            }
+        }
+    }
+
+    $DefaultVlanLookup = $ReturnArray | Where-Object { $_.Id -eq 1 }
+    if (-not $DefaultVlanLookup) {
+        $new = [Vlan]::new(1)
+        $new.Name = 'default'
+        $ReturnArray += $new
     }
 
     if (-not $NoPortConfig) {
         foreach ($port in $PortConfig) {
             $UntaggedVlanLookup = $ReturnArray | Where-Object { $_.Id -eq $port.UntaggedVlan }
             $UntaggedVlanLookup.UntaggedPorts += $port.Name
+            $global:test = $port
 
             if ($port.VoiceVlan -gt 0) {
                 $VoiceVlanLookup = $ReturnArray | Where-Object { $_.Id -eq $port.VoiceVlan }
@@ -107,8 +160,10 @@ function Get-CiscoVlanConfig {
             }
 
             if ($port.TaggedVlan.Count -gt 1) {
-                $TaggedVlanLookup = $ReturnArray | Where-Object { $_.Id -eq $port.TaggedVlan }
-                $TaggedVlanLookup.TaggedPorts += $port.Name
+                $TaggedVlanLookup = $ReturnArray | Where-Object { $port.TaggedVlan -contains $_.Id }
+                foreach ($vlan in $TaggedVlanLookup) {
+                    $vlan.TaggedPorts += $port.Name
+                }
             }
 
             if ($port.TaggedVlan.Count -eq 0 -and $port.Mode -eq 'trunk') {

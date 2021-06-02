@@ -37,6 +37,9 @@ function Get-CiscoPortConfig {
     $IgnoredRegex = @(
         '^\s+switchport$'
         '^\s+wrr-queue.+'
+        '^\s+srr-queue.*'
+        '^\s+service-policy.*'
+        '^\s+queue-set.*'
         '^\s+rcv-queue'
         '^\s+ip\s.+'
         '^\s+udld.+'
@@ -50,6 +53,12 @@ function Get-CiscoPortConfig {
         '^\s+bandwidth\s\d+'
         '^\s+load-interval'
         '^\s+switchport\sport-security.*'
+        '^\s+mab'
+        '^\s+dot1x.*'
+        '^\s+authentication.*'
+        '^\s+trust\sdevice\scisco.+'
+        '\svrf\sforwarding\sMgmt'
+        '\snegotiation\sauto'
     )
 
     Write-Verbose "RUNNING $($LoopArray.Count)"
@@ -254,6 +263,7 @@ function Get-CiscoPortConfig {
 
         if ($port.Mode -eq 'trunk' -and $port.TaggedVlan.Count -eq 0) {
             $port.TaggedVlan = $VlanConfig.Id
+            $port.TaggedVlan = $Port.TaggedVlan | Where-Object { $_ -ne $port.UntaggedVlan }
         }
     }
 

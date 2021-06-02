@@ -10,7 +10,7 @@ function Resolve-CiscoPortName {
         $ReturnArray = @()
 
         # short name data
-        $ShortPortNameRx = [regex] '^(?<name>\w{2})(?<number>\d+(\/\d+)+)$'
+        $ShortPortNameRx = [regex] '^(?<name>\w{2})(?<number>\d+((\/\d+)+)?)$'
         $ShortNameToLongName = @{
             'Te' = 'TenGigabitEthernet'
             'Gi' = 'GigabitEthernet'

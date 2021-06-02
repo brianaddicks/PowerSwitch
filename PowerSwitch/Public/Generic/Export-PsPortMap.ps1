@@ -17,7 +17,7 @@ function Export-PsPortMap {
 
     Begin {
         # It's nice to be able to see what cmdlet is throwing output isn't it?
-        $VerbosePrefix = "Get-PsAaaConfig:"
+        $VerbosePrefix = "Export-PsPortMap:"
 
         # check for ImportExcel Module
         if (!(Get-Module -ListAvailable ImportExcel)) {
@@ -28,7 +28,7 @@ function Export-PsPortMap {
         $SplitPath = Split-Path -Path $Path
         $SplitPathLeaf = Split-Path -Path $Path -Leaf
         if (!(Test-Path -Path $SplitPath)) {
-            Throw "$VerbosePrefix Path is invalid: $ResolvedPath"
+            Throw "$VerbosePrefix Path is invalid: $SplitPath"
         } else {
             $OutputPath = Join-Path -Path (Resolve-Path -Path $SplitPath) -ChildPath $SplitPathLeaf
         }

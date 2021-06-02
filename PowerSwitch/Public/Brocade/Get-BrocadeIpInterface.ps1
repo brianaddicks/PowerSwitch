@@ -89,6 +89,15 @@ function Get-BrocadeIpInterface {
                 continue
             }
 
+            # ip address cidr
+            $EvalParams.Regex = [regex] "^\ +ip\ address\ (?<ip>$IpRx\/\d+)"
+            $Eval = Get-RegexMatch @EvalParams
+            if ($Eval) {
+                $IpAndMask = $Eval.Groups['ip'].Value
+                $new.IpAddress += $IpAndMask
+                continue
+            }
+
             # ip helper-address
             $EvalParams.Regex = [regex] "^\ +ip\ helper-address\ \d+\ ($IpRx)"
             $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1

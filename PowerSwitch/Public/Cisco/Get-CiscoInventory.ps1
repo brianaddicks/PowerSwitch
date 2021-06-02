@@ -172,10 +172,16 @@ function Get-CiscoInventory {
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
                 Write-Verbose "$VerbosePrefix $i`: inventory found"
-                $new = "" | Select-Object Slot, Module, Model, Serial, Firmware, Status, PortCount
-                $new.Slot = $Eval.Groups['name'].Value.Trim()
-                $new.Module = $Eval.Groups['description'].Value.Trim()
-                $ReturnObject += $new
+                $SlotName = $Eval.Groups['name'].Value.Trim()
+                $SlotLookup = $ReturnObject | Where-Object { $_.Slot -eq $SlotName }
+                if ($SlotLookup) {
+                    $SlotLookup.Module = $Eval.Groups['description'].Value.Trim()
+                } else {
+                    $new = "" | Select-Object Slot, Module, Model, Serial, Firmware, Status, PortCount
+                    $new.Slot = $Eval.Groups['name'].Value.Trim()
+                    $new.Module = $Eval.Groups['description'].Value.Trim()
+                    $ReturnObject += $new
+                }
                 continue
             }
 
@@ -184,12 +190,19 @@ function Get-CiscoInventory {
             $Eval = Get-RegexMatch @EvalParams
             if ($Eval) {
                 Write-Verbose "$VerbosePrefix $i`: inventory found"
-                $new.Model = $Eval.Groups['pid'].Value.Trim()
-                if ($new.Model -eq 'Unspecified') {
-                    $new.Module
+
+                if ($SlotLookup) {
+                    $SlotLookup.Model = $Eval.Groups['pid'].Value.Trim()
+                    $SlotLookup.Serial = $Eval.Groups['serial'].Value.Trim()
+                    Remove-Variable SlotLookup
+                } else {
+                    $new.Model = $Eval.Groups['pid'].Value.Trim()
+                    if ($new.Model -eq 'Unspecified') {
+                        $new.Module
+                    }
+                    #$new.VendorId = $Eval.Groups['vid'].Value
+                    $new.Serial = $Eval.Groups['serial'].Value.Trim()
                 }
-                #$new.VendorId = $Eval.Groups['vid'].Value
-                $new.Serial = $Eval.Groups['serial'].Value.Trim()
                 continue
             }
 
@@ -200,5 +213,6 @@ function Get-CiscoInventory {
             }
         }
     }
+
     return $ReturnObject
 }
