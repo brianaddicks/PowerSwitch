@@ -12,7 +12,11 @@ function Export-PsPortMap {
         [Port[]]$PortStatus,
 
         [Parameter(Mandatory = $false)]
-        [string]$DeviceName
+        [string]$DeviceName,
+
+        [Parameter(Mandatory = $True)]
+        [ValidateSet('ExtremeEos','Cisco')]
+        [string]$PsSwitchType
     )
 
     Begin {
@@ -34,8 +38,18 @@ function Export-PsPortMap {
         }
 
         # add port status to port config
+        $PortStatus = $PortStatus | Where-Object { $_.Name -notmatch '(vlan|lo|tbp|host|com)\.' }
         foreach ($port in $PortStatus) {
-            $ResolvedPortName = Resolve-CiscoPortName -PortName $port.Name
+            switch ($PsSwitchType) {
+                'Cisco' {
+                    $ResolvedPortName = Resolve-CiscoPortName -PortName $port.Name
+                    break
+                }
+                default {
+                    $ResolvedPortName = $port.Name
+                }
+            }
+
             $ConfigLookup = $PortConfig | Where-Object { $_.Name -eq $ResolvedPortName }
             $ConfigLookup.OperStatus = $port.OperStatus
             $ConfigLookup.Speed = $port.Speed
@@ -49,6 +63,9 @@ function Export-PsPortMap {
             NewDevice,
             NewPortName,
             Aggregate,
+            NewMlag,
+            NewMasterPort,
+            LacpEnabled,
             OperStatus,
             AdminStatus,
             Speed,
@@ -60,6 +77,6 @@ function Export-PsPortMap {
             VoiceVlan,
             @{ Name = "TaggedVlan"; Expression = { $_.TaggedVlan | Resolve-VlanString } }
 
-        $Output | Export-Excel -Path $OutputPath -NoNumberConversion * -AutoSize -ClearSheet -FreezeTopRow
+        $Output | Export-Excel -Path $OutputPath -NoNumberConversion * -AutoSize -FreezeTopRow -WorksheetName "PortMap"
     }
 }

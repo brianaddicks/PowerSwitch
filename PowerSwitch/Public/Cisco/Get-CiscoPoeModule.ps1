@@ -39,7 +39,7 @@ function Get-CiscoPoeModule {
 
         if ($StopWatch.Elapsed.TotalMilliseconds -ge 1000) {
             $PercentComplete = [math]::truncate($i / $TotalLines * 100)
-            Write-Progress -Activity "Reading Support Output" -Status "$PercentComplete% $i/$TotalLines" -PercentComplete $PercentComplete
+            Write-Progress -Activity "$VerbosePrefix Reading Support Output" -Status "$PercentComplete% $i/$TotalLines" -PercentComplete $PercentComplete
             $StopWatch.Reset()
             $StopWatch.Start()
         }
@@ -77,7 +77,11 @@ function Get-CiscoPoeModule {
             }
 
             # Gi0/1     auto   on         15.4    Ieee PD             3     15.4
-            $EvalParams.Regex = [regex] "^Gi(\d+)\/\d+\ +auto\ +(on|off)\ +\d+\.\d+\s +.+?\d+\ +\d+\.\d+"
+
+            # Gi2/1     auto   low        on            17.3    15.4 Ieee PD                 3 off               7.9
+            # Gi3/4     auto   low        on            17.3    15.4 GXP2140                 3 n/a               n/a
+            $EvalParams.Regex = [regex] "^Gi(\d+)\/\d+\ +auto\ +(low\ +)?(on|off)\ +\d+(\.\d+)?\s +(\d+\.\d+)?.+?\d+(\ +(on|off|n\/a))?"
+            $EvalParams.Regex = [regex] "^Gi(\d+)\/\d+\ +auto\ +(low\ +)?(on|off)\ +\d+(\.\d+)?\s +(\d+\.\d+)?"
             $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
             if ($Eval) {
                 Write-Verbose "$VerbosePrefix $i`: poe module found"

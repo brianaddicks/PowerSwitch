@@ -30,7 +30,7 @@ function Get-HpArubaNeighbor {
     $i = 0
     $StopWatch = [System.Diagnostics.Stopwatch]::StartNew() # used by Write-Progress so it doesn't slow the whole function down
 
-    $HostConfig = Get-HpArubaHostConfig -ConfigArray $LoopArray
+    $HostConfig = Get-HpArubaHostConfig -ConfigArray $LoopArray -ErrorAction SilentlyContinue
 
     #$DhcpRelays = Get-HpArubaRelayServerGroup -ConfigArray $LoopArray
 
@@ -58,7 +58,7 @@ function Get-HpArubaNeighbor {
 
         $EvalParams = @{}
         $EvalParams.StringToEval = $entry
-        $EvalParams.Regex = [regex] 'show\slldp\sinfo\sremote-device\sdetail$'
+        $EvalParams.Regex = [regex] 'show\slldp\sinfo\sremote-device\sdetail'
         $EvalParams.LineNumber = $i
 
         $Eval = Get-RegexMatch @EvalParams

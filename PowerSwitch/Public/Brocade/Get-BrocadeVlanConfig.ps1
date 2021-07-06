@@ -60,9 +60,14 @@ function Get-BrocadeVlanConfig {
         $Eval = Get-RegexMatch @EvalParams
         if ($Eval) {
             Write-Verbose "$VerbosePrefix $i`: vlan: create"
-            $New = [Vlan]::new([int]$Eval.Groups['id'].Value)
-            $New.Name = $Eval.Groups['name'].Value
-            $ReturnArray += $New
+            $ExistingVlan = $ReturnArray | Where-Object { $_.Id -eq [int]$Eval.Groups['id'].Value }
+            if ($ExistingVlan) {
+                $ExistingVlan.Name = $Eval.Groups['name'].Value
+            } else {
+                $New = [Vlan]::new([int]$Eval.Groups['id'].Value)
+                $New.Name = $Eval.Groups['name'].Value
+                $ReturnArray += $New
+            }
             $KeepGoingVlan = $true
             continue
         }

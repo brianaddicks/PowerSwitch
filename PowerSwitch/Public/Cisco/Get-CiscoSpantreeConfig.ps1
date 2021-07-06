@@ -68,6 +68,14 @@ function Get-CiscoSpantreeConfig {
             continue
         }
 
+        # spanning-tree vlan 1-4094 priority 24576
+        $EvalParams.Regex = [regex] "^spanning-tree\ vlan\ .+?\ priority\ (\d+)"
+        $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1
+        if ($Eval) {
+            $ReturnObject.Priority = $Eval
+            continue
+        }
+
         # interface config match
         $EvalParams.Regex = [regex] "^interface\ (.+)"
         $Eval = Get-RegexMatch @EvalParams -ReturnGroupNumber 1

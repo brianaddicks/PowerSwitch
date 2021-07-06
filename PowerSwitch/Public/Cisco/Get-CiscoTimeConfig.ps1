@@ -75,14 +75,24 @@ function Get-CiscoTimeConfig {
         $EvalParams.Regex = [regex] "^clock\ summer-time\ (?<tzname>.+)\ recurring"
         $Eval = Get-RegexMatch @EvalParams -ReturnGroupNum 1
         if ($Eval) {
+            if (-not $new) {
+                $new = [TimeConfig]::new()
+                $ReturnArray += $new
+            }
             $new.SummerTimeEnabled = $true
+            continue
         }
 
         # ntp server 1.1.1.1
         $EvalParams.Regex = [regex] "^ntp\ server\ ($IpRx)"
         $Eval = Get-RegexMatch @EvalParams -ReturnGroupNum 1
         if ($Eval) {
-            $new.SntpServer = $Eval
+            if (-not $new) {
+                $new = [TimeConfig]::new()
+                $ReturnArray += $new
+            }
+            $new.SntpServer += $Eval
+            continue
         }
 
     }

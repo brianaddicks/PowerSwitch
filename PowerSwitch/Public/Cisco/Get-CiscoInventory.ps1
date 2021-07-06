@@ -39,7 +39,7 @@ function Get-CiscoInventory {
 
         if ($StopWatch.Elapsed.TotalMilliseconds -ge 1000) {
             $PercentComplete = [math]::truncate($i / $TotalLines * 100)
-            Write-Progress -Activity "Reading Support Output" -Status "$PercentComplete% $i/$TotalLines" -PercentComplete $PercentComplete
+            Write-Progress -Activity "$VerbosePrefix Reading Support Output" -Status "$PercentComplete% $i/$TotalLines" -PercentComplete $PercentComplete
             $StopWatch.Reset()
             $StopWatch.Start()
         }
@@ -151,9 +151,9 @@ function Get-CiscoInventory {
             if ($Eval) {
                 Write-Verbose "$VerbosePrefix $i`: chassis found"
                 $new = "" | Select-Object Slot, Module, Model, Serial, Firmware, Status, PortCount
-                $new.Slot = $Eval.Groups['slot'].Value
-                $new.Model = $Eval.Groups['model'].Value
-                $new.PortCount = $Eval.Groups['portcount'].Value
+                $new.Slot = $Eval.Groups['slot'].Value.Trim()
+                $new.Model = $Eval.Groups['model'].Value.Trim()
+                $new.PortCount = $Eval.Groups['portcount'].Value.Trim()
                 $ReturnObject += $new
                 continue
             }
