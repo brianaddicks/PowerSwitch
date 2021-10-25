@@ -31,10 +31,21 @@ function Get-PsInventory {
             $ReturnObject = Get-EosInventory -ConfigArray $LoopArray
         }
         'Cisco' {
-            $ReturnObject += Get-CiscoInventory -ConfigArray $LoopArray
+            $ReturnObject = Get-CiscoInventory -ConfigArray $LoopArray
         }
         default {
             Throw "$VerbosePrefix SwitchType not handled '$PsSwitchType'"
+        }
+    }
+
+    if ($null -eq $ReturnObject) {
+        switch ($PsSwitchType) {
+            'ExtremeEos' {
+                $ReturnObject = Get-EosInventoryFromConfig -ConfigArray $LoopArray
+            }
+            default {
+                Throw "$VerbosePrefix SwitchType not handled for InventoryFromConfig'$PsSwitchType'"
+            }
         }
     }
 

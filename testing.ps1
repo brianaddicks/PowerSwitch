@@ -8,6 +8,9 @@ Param (
 )
 ipmo ./PowerSwitch -Force -Verbose:$false
 
+Get-EosInventoryFromConfig -ConfigPath $ConfigPath
+
+<#
 $Files = gci $ConfigPath -File | ? { $_.BaseName -notmatch '_route$'}
 #$Files = $Files[0..4]
 $ReturnArray = @()
@@ -63,4 +66,4 @@ foreach ($file in $Files) {
     $NewObject.PortAuthenticationEnabled = $false
 }
 
-$ReturnArray
+$ReturnArray #>
